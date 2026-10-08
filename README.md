@@ -70,6 +70,12 @@ file / folder / *.ext": the pattern is appended to the worktree's
 `.gitignore`, which then opens in your editor. `r` twice discards the focused file's changes (deletes an untracked file). With lines selected in the diff, `s`, `u` and `r r` act on just those lines: stage, unstage, or discard them (`editor` in the config, e.g.
 `"code --wait {file}"`; empty means `xdg-open`). `i` ignores the focused file.
 
+When browsing a commit, `r r` (or the undo button) reverts the selected
+file's change, or only the selected diff lines, or the whole commit, into
+the active worktree. The revert is staged, the view switches to the
+working changes with a prefilled "Revert …" message, and ctrl+enter
+commits it.
+
 Fetch, pull (merge, rebase or fast-forward only) and push (plain, set
 upstream, force-with-lease) live in the repo header and act on the active
 worktree.

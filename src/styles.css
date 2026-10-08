@@ -215,7 +215,8 @@ button { font: inherit; color: inherit; }
 .body-toggle { padding: 1px; margin-left: -4px; color: var(--fg-muted); }
 .details-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 3px; font-size: 12px; user-select: text; }
 .details-body { margin: 8px 0 0; font: 12px/1.45 var(--font-mono); white-space: pre-wrap; color: var(--fg); user-select: text; max-height: 160px; overflow: auto; }
-.details-tools { position: absolute; top: 6px; right: 10px; display: flex; gap: 4px; }
+.details-tools { position: absolute; top: 6px; right: 10px; display: flex; gap: 6px; align-items: center; }
+.details:focus { outline: none; }
 .details-split { flex: 1; min-height: 0; }
 
 .pane-title { padding: 6px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); }

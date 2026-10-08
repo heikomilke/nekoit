@@ -164,8 +164,8 @@ pub async fn apply_to_index(state: State<'_, AppState>, worktree: String, patch:
 }
 
 #[tauri::command]
-pub async fn apply_to_worktree(state: State<'_, AppState>, worktree: String, patch: String, reverse: bool) -> R<()> {
-    blocking(&state.git, move |git| g::apply_to_worktree(git, &p(&worktree), &patch, reverse)).await
+pub async fn apply_to_worktree(state: State<'_, AppState>, worktree: String, patch: String, reverse: bool, index: bool) -> R<()> {
+    blocking(&state.git, move |git| g::apply_to_worktree(git, &p(&worktree), &patch, reverse, index)).await
 }
 
 #[tauri::command]

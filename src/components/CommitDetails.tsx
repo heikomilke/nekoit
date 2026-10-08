@@ -1,7 +1,9 @@
-import { ChevronDown, ChevronRight, Columns2, Rows3 } from "lucide-react";
+import type { SelectedLineRange } from "@pierre/diffs/react";
+import { ChevronDown, ChevronRight, Columns2, Rows3, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildPartialPatch, keepRows, parseUnifiedDiff, rowFor } from "../diff/unified";
 import { api, type CommitDetails as Details, type FileChange } from "../api";
-import { useStore } from "../store";
+import { WORKDIR, useStore } from "../store";
 import { laneColor } from "../graph/colors";
 import { layoutGraph } from "../graph/layout";
 import { absoluteTime, errorMessage, shortSha } from "../util/format";
@@ -32,6 +34,15 @@ export function CommitDetailsPane() {
   const [loading, setLoading] = useState(false);
   const [showBody, setShowBody] = useState(false);
   const [containing, setContaining] = useState<string[]>([]);
+  /** Line selection on the single-file diff, for partial reverts. */
+  const [lineRange, setLineRange] = useState<SelectedLineRange | null>(null);
+  const [armed, setArmed] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const refreshStatus = useStore((s) => s.refreshStatus);
+  const setNotice = useStore((s) => s.setNotice);
+  const setCommitDraft = useStore((s) => s.setCommitDraft);
+  const select = useStore((s) => s.select);
 
   const repoDir = current?.repo.commonDir ?? "";
   const selected = current?.selected ?? [];
@@ -133,7 +144,10 @@ export function CommitDetailsPane() {
         setPair(null);
         const path = selectedFiles[0];
         const p = range ? await api.rangePatch(repoDir, range.base, range.target, path) : await api.commitPatch(repoDir, target, path);
-        if (live) setPatch(p);
+        if (live) {
+          setPatch(p);
+          setLineRange(null);
+        }
       } catch (e) {
         if (live) setError(errorMessage(e));
       }
@@ -142,6 +156,70 @@ export function CommitDetailsPane() {
       live = false;
     };
   }, [repoDir, target, range, selectionKey, setError]);
+
+  /**
+   * Revert the shown change into the active worktree as a pending change:
+   * the file's patch (or only the selected lines) applied in reverse with
+   * `git apply --reverse`. Armed on the first r, executed on the second.
+   */
+  const revert = useCallback(async () => {
+    const wt = current?.worktree;
+    if (!wt || !target || busy || pair) return;
+    const path = selectedFiles.length === 1 ? selectedFiles[0] : null;
+    const single = parseUnifiedDiff(patch)[0];
+    const lines = !!lineRange && !!path && !!single;
+    const key = `${target}:${path ?? "*"}:${lines ? `${lineRange.start}-${lineRange.end}` : ""}`;
+    if (armed !== key) {
+      setArmed(key);
+      setTimeout(() => setArmed((a) => (a === key ? null : a)), 3000);
+      return;
+    }
+    setArmed(null);
+    setBusy(true);
+    try {
+      let toApply = patch;
+      if (lines) {
+        const from = rowFor(single, lineRange.start, lineRange.side ?? "additions");
+        const to = rowFor(single, lineRange.end, lineRange.endSide ?? lineRange.side ?? "additions");
+        if (from === null || to === null) return;
+        const partial = buildPartialPatch(single, keepRows(from, to), true);
+        if (!partial) return;
+        toApply = partial;
+      }
+      // Reverse-apply to the working tree and the index, so the revert is already staged.
+      await api.applyToWorktree(wt.path, toApply, true, true);
+      setNotice(`reverted ${lines ? "selected lines of " : ""}${path ?? "the whole commit"} into ${wt.name}, staged`);
+      setLineRange(null);
+      await refreshStatus(wt.path);
+      // Hand over to the working-changes view with a ready-made message; ctrl+enter finishes it.
+      const what = lines ? `part of ${path}` : path ?? "all changes";
+      setCommitDraft(`Revert ${what} from "${details?.subject ?? target.slice(0, 8)}"\n\nThis reverts ${what} of commit ${target}.\n`);
+      select(WORKDIR, false);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [current?.worktree, target, busy, pair, selectedFiles, patch, lineRange, armed, refreshStatus, setNotice, setError, setCommitDraft, select, details?.subject]);
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "r" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        void revert();
+      }
+      if (e.key === "Escape" && (armed || lineRange)) {
+        e.stopPropagation();
+        setArmed(null);
+        setLineRange(null);
+      }
+    };
+    el.addEventListener("keydown", onKey);
+    return () => el.removeEventListener("keydown", onKey);
+  }, [revert, armed, lineRange]);
 
   const onSelectFile = useCallback((path: string, extend: boolean) => {
     setSelectedFiles((cur) => {
@@ -207,6 +285,26 @@ export function CommitDetailsPane() {
       )}
       {!range && details.body && showBody && <pre className="details-body">{details.body}</pre>}
       <div className="details-tools">
+        {armed ? (
+          <span className="arm-hint">
+            revert {lineRange && selectedFiles.length === 1 ? "selected lines of " : ""}
+            {selectedFiles.length === 1 ? selectedFiles[0].split("/").pop() : "the whole commit"} into {current.worktree?.name}? press r again, Esc to cancel
+          </span>
+        ) : lineRange && selectedFiles.length === 1 ? (
+          <span className="sel-pill">
+            <span className="sel-dot" />
+            lines {Math.min(lineRange.start, lineRange.end)}–{Math.max(lineRange.start, lineRange.end)} selected
+            <span className="sel-keys">r r revert into {current.worktree?.name} · Esc clear</span>
+          </span>
+        ) : null}
+        <button
+          className="btn btn-icon"
+          onClick={() => void revert()}
+          disabled={!current.worktree || busy || !!pair}
+          title={`Revert ${selectedFiles.length === 1 ? "this file's change" : "this commit"} into the working tree of ${current.worktree?.name ?? "…"} as a pending change (r r)`}
+        >
+          <Undo2 size={14} />
+        </button>
         <button className={`btn btn-icon ${diffStyle === "unified" ? "is-active" : ""}`} onClick={() => changeStyle("unified")} title="Unified">
           <Rows3 size={14} />
         </button>
@@ -218,7 +316,7 @@ export function CommitDetailsPane() {
   );
 
   return (
-    <div className="details">
+    <div className="details" ref={rootRef} tabIndex={0}>
       {header}
       <SplitPane
         direction="horizontal"
@@ -233,7 +331,14 @@ export function CommitDetailsPane() {
               {pair ? (
                 <FilesView dark={dark} diffStyle={diffStyle} oldName={pair.a} oldContents={pair.aText} newName={pair.b} newContents={pair.bText} />
               ) : (
-                <PatchView dark={dark} diffStyle={diffStyle} patch={patch} />
+                <PatchView
+                  dark={dark}
+                  diffStyle={diffStyle}
+                  patch={patch}
+                  enableLineSelection={selectedFiles.length === 1}
+                  selectedLines={lineRange}
+                  onLineSelected={setLineRange}
+                />
               )}
             </ErrorBoundary>
           </div>

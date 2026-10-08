@@ -51,6 +51,15 @@ export function ChangesPane() {
   /** Path armed for discard; a second `r` within a few seconds confirms. */
   const [armed, setArmed] = useState<string | null>(null);
   const setNotice = useStore((s) => s.setNotice);
+  const commitDraft = useStore((s) => s.commitDraft);
+  const setCommitDraft = useStore((s) => s.setCommitDraft);
+  useEffect(() => {
+    if (commitDraft !== null) {
+      setMessage(commitDraft);
+      setCommitDraft(null);
+      messageBox.current?.focus();
+    }
+  }, [commitDraft, setCommitDraft]);
   const root = useRef<HTMLDivElement>(null);
   const messageBox = useRef<HTMLTextAreaElement>(null);
 

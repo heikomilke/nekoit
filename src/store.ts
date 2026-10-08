@@ -48,6 +48,8 @@ interface State {
   error: string | null;
   /** Transient success message, cleared automatically. */
   notice: string | null;
+  /** Message prefilled into the commit box the next time the changes view opens. */
+  commitDraft: string | null;
 
   init(): Promise<void>;
   saveConfig(patch: Partial<AppConfig>): Promise<void>;
@@ -68,6 +70,7 @@ interface State {
   toggleLog(): void;
   setError(msg: string | null): void;
   setNotice(msg: string | null): void;
+  setCommitDraft(msg: string | null): void;
 }
 
 function indexRefs(refs: RefInfo[]): Map<string, RefInfo[]> {
@@ -109,6 +112,7 @@ export const useStore = create<State>((set, get) => ({
   logOpen: false,
   error: null,
   notice: null,
+  commitDraft: null,
 
   async init() {
     try {
@@ -293,6 +297,10 @@ export const useStore = create<State>((set, get) => ({
 
   setError(msg) {
     set({ error: msg });
+  },
+
+  setCommitDraft(msg) {
+    set({ commitDraft: msg });
   },
 
   setNotice(msg) {
