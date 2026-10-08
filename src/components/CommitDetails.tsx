@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Columns2, Rows3 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type CommitDetails as Details, type FileChange } from "../api";
 import { useStore } from "../store";
 import { absoluteTime, errorMessage, shortSha } from "../util/format";
@@ -22,6 +22,8 @@ export function CommitDetailsPane() {
   const [diffStyle, setDiffStyle] = useState<DiffStyle>(() => (localStorage.getItem("diffStyle") as DiffStyle) || "unified");
   const [details, setDetails] = useState<Details | null>(null);
   const [files, setFiles] = useState<FileChange[]>([]);
+  const filesRef = useRef<FileChange[]>([]);
+  filesRef.current = files;
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [patch, setPatch] = useState<string>("");
   const [pair, setPair] = useState<{ a: string; b: string; aText: string; bText: string } | null>(null);
@@ -50,7 +52,7 @@ export function CommitDetailsPane() {
 
   // Load header + file list whenever the commit selection changes.
   useEffect(() => {
-    setSelectedFiles([]);
+    setSelectedFiles((cur) => (cur.length ? [] : cur));
     setPair(null);
     setPatch("");
     if (!repoDir || (!single && !range)) {
@@ -85,15 +87,18 @@ export function CommitDetailsPane() {
   }, [repoDir, single, range, setError]);
 
   // Load the diff for the selected file(s), or the whole commit when none is selected.
+  // Keyed on a string so replacing the selection array with an equal one does not refetch.
+  const selectionKey = selectedFiles.join("\0");
   useEffect(() => {
     if (!repoDir || !target) return;
+    const selectedFiles = selectionKey ? selectionKey.split("\0") : [];
     let live = true;
     (async () => {
       try {
         if (selectedFiles.length === 2) {
           const [a, b] = selectedFiles;
           // A deleted file only exists on the old side of the range.
-          const revFor = (path: string) => (files.find((f) => f.path === path)?.status === "D" ? (range ? range.base : `${target}^`) : target);
+          const revFor = (path: string) => (filesRef.current.find((f) => f.path === path)?.status === "D" ? (range ? range.base : `${target}^`) : target);
           const [aText, bText] = await Promise.all([api.fileAt(repoDir, revFor(a), a), api.fileAt(repoDir, revFor(b), b)]);
           if (live) setPair({ a, b, aText, bText });
           return;
@@ -109,7 +114,7 @@ export function CommitDetailsPane() {
     return () => {
       live = false;
     };
-  }, [repoDir, target, range, selectedFiles, files, setError]);
+  }, [repoDir, target, range, selectionKey, setError]);
 
   const onSelectFile = useCallback((path: string, extend: boolean) => {
     setSelectedFiles((cur) => {
