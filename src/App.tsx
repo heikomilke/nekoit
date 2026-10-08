@@ -39,6 +39,10 @@ export default function App() {
         e.preventDefault();
         void getCurrentWindow().close();
       }
+      if (e.key === "w" && e.ctrlKey && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        void getCurrentWindow().minimize();
+      }
       // F5 reloads whatever is on screen: the repo graph and statuses, or the dashboard.
       if (e.key === "F5") {
         e.preventDefault();

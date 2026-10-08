@@ -63,6 +63,7 @@ opened repo/worktree, theme).
 | `Esc` | back to the dashboard |
 | ``ctrl+` `` | toggle the git command log |
 | `ctrl+q` | quit |
+| `ctrl+w` | minimize the window |
 
 Fetch, pull (merge, rebase or fast-forward only) and push (plain, set
 upstream, force-with-lease) live in the repo header and act on the active
