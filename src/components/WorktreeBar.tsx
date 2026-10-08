@@ -21,7 +21,15 @@ export function WorktreeBar({ colorBySha, onJump }: Props) {
   const sorted = [...repo.worktrees].sort((a, b) => b.headTime - a.headTime);
 
   return (
-    <div className="wt-bar" role="tablist" aria-label="Worktrees">
+    <div
+      className="wt-bar"
+      role="tablist"
+      aria-label="Worktrees"
+      onWheel={(e) => {
+        // Vertical wheel scrolls the bar sideways; its own scrollbar is hidden.
+        if (e.deltaY !== 0 && e.deltaX === 0) e.currentTarget.scrollLeft += e.deltaY;
+      }}
+    >
       {sorted.map((w: WorktreeInfo) => {
         const st = statuses[w.path];
         const dirty = st ? st.entries.filter((e) => !e.ignored).length : 0;
