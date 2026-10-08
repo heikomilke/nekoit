@@ -1,5 +1,5 @@
 import type { SelectedLineRange } from "@pierre/diffs/react";
-import { ChevronDown, ChevronRight, Columns2, Rows3, Undo2 } from "lucide-react";
+import { Cherry, ChevronDown, ChevronRight, Columns2, Rows3, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildPartialPatch, keepRows, parseUnifiedDiff, rowFor } from "../diff/unified";
 import { api, type CommitDetails as Details, type FileChange } from "../api";
@@ -158,16 +158,18 @@ export function CommitDetailsPane() {
   }, [repoDir, target, range, selectionKey, setError]);
 
   /**
-   * Revert the shown change into the active worktree as a pending change:
-   * the file's patch (or only the selected lines) applied in reverse with
-   * `git apply --reverse`. Armed on the first r, executed on the second.
+   * Apply the shown change into the active worktree as a staged pending change:
+   * the file's patch (or only the selected lines, or the whole commit), in
+   * reverse for a revert or forward for a cherry-pick. Armed on the first key
+   * press, executed on the second.
    */
-  const revert = useCallback(async () => {
+  const applyFromCommit = useCallback(async (reverse: boolean) => {
     const wt = current?.worktree;
     if (!wt || !target || busy || pair) return;
     const path = selectedFiles.length === 1 ? selectedFiles[0] : null;
     const lines = !!lineRange && !!path;
-    const key = `${target}:${path ?? "*"}:${lines ? `${lineRange.start}-${lineRange.end}` : ""}`;
+    const verb = reverse ? "revert" : "pick";
+    const key = `${verb}:${target}:${path ?? "*"}:${lines ? `${lineRange.start}-${lineRange.end}` : ""}`;
     if (armed !== key) {
       setArmed(key);
       setTimeout(() => setArmed((a) => (a === key ? null : a)), 3000);
@@ -188,18 +190,26 @@ export function CommitDetailsPane() {
         const from = rowFor(single, lineRange.start, lineRange.side ?? "additions");
         const to = rowFor(single, lineRange.end, lineRange.endSide ?? lineRange.side ?? "additions");
         if (from === null || to === null) return;
-        const partial = buildPartialPatch(single, keepRows(from, to), true);
+        // Reverse needs a patch whose new side matches the target file; forward needs the old side.
+        const partial = buildPartialPatch(single, keepRows(from, to), reverse);
         if (!partial) return;
         toApply = partial;
       }
-      // Reverse-apply to the working tree and the index, so the revert is already staged.
-      await api.applyToWorktree(wt.path, toApply, true, true);
-      setNotice(`reverted ${lines ? "selected lines of " : ""}${path ?? "the whole commit"} into ${wt.name}, staged`);
+      // Apply to the working tree and the index, so the result is already staged.
+      await api.applyToWorktree(wt.path, toApply, reverse, true);
+      const what = lines ? `part of ${path}` : path ?? "all changes";
+      setNotice(`${reverse ? "reverted" : "cherry-picked"} ${what} into ${wt.name}, staged`);
       setLineRange(null);
       await refreshStatus(wt.path);
       // Hand over to the working-changes view with a ready-made message; ctrl+enter finishes it.
-      const what = lines ? `part of ${path}` : path ?? "all changes";
-      setCommitDraft(`Revert ${what} from "${details?.subject ?? target.slice(0, 8)}"\n\nThis reverts ${what} of commit ${target}.\n`);
+      const subject = details?.subject ?? target.slice(0, 8);
+      setCommitDraft(
+        reverse
+          ? `Revert ${what} from "${subject}"\n\nThis reverts ${what} of commit ${target}.\n`
+          : path || lines
+            ? `${subject}\n\nCherry-picked ${what} of commit ${target}.\n`
+            : `${subject}\n\n(cherry picked from commit ${target})\n`,
+      );
       select(WORKDIR, false);
     } catch (e) {
       setError(errorMessage(e));
@@ -207,6 +217,9 @@ export function CommitDetailsPane() {
       setBusy(false);
     }
   }, [current?.worktree, target, busy, pair, selectedFiles, range, repoDir, lineRange, armed, refreshStatus, setNotice, setError, setCommitDraft, select, details?.subject]);
+
+  const revert = useCallback(() => applyFromCommit(true), [applyFromCommit]);
+  const pick = useCallback(() => applyFromCommit(false), [applyFromCommit]);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -217,6 +230,10 @@ export function CommitDetailsPane() {
         e.preventDefault();
         void revert();
       }
+      if (e.key === "p" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        void pick();
+      }
       if (e.key === "Escape" && (armed || lineRange)) {
         e.stopPropagation();
         setArmed(null);
@@ -225,7 +242,7 @@ export function CommitDetailsPane() {
     };
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, [revert, armed, lineRange]);
+  }, [revert, pick, armed, lineRange]);
 
   const onSelectFile = useCallback((path: string, extend: boolean) => {
     setSelectedFiles((cur) => {
@@ -293,21 +310,29 @@ export function CommitDetailsPane() {
       <div className="details-tools">
         {armed ? (
           <span className="arm-hint">
-            revert {lineRange && selectedFiles.length === 1 ? "selected lines of " : ""}
-            {selectedFiles.length === 1 ? selectedFiles[0].split("/").pop() : "the whole commit"} into {current.worktree?.name}? press r again, Esc to cancel
+            {armed.startsWith("revert") ? "revert" : "cherry-pick"} {lineRange && selectedFiles.length === 1 ? "selected lines of " : ""}
+            {selectedFiles.length === 1 ? selectedFiles[0].split("/").pop() : "the whole commit"} into {current.worktree?.name}? press {armed.startsWith("revert") ? "r" : "p"} again, Esc to cancel
           </span>
         ) : lineRange && selectedFiles.length === 1 ? (
           <span className="sel-pill">
             <span className="sel-dot" />
             lines {Math.min(lineRange.start, lineRange.end)}–{Math.max(lineRange.start, lineRange.end)} selected
-            <span className="sel-keys">r r revert into {current.worktree?.name} · Esc clear</span>
+            <span className="sel-keys">p p cherry-pick · r r revert into {current.worktree?.name} · Esc clear</span>
           </span>
         ) : null}
         <button
           className="btn btn-icon"
+          onClick={() => void pick()}
+          disabled={!current.worktree || busy || !!pair}
+          title={`Cherry-pick ${selectedFiles.length === 1 ? "this file's change" : "this commit"} into the working tree of ${current.worktree?.name ?? "…"}, staged (p p)`}
+        >
+          <Cherry size={14} />
+        </button>
+        <button
+          className="btn btn-icon"
           onClick={() => void revert()}
           disabled={!current.worktree || busy || !!pair}
-          title={`Revert ${selectedFiles.length === 1 ? "this file's change" : "this commit"} into the working tree of ${current.worktree?.name ?? "…"} as a pending change (r r)`}
+          title={`Revert ${selectedFiles.length === 1 ? "this file's change" : "this commit"} into the working tree of ${current.worktree?.name ?? "…"}, staged (r r)`}
         >
           <Undo2 size={14} />
         </button>
