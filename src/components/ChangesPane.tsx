@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type StatusEntry } from "../api";
 import { buildPartialPatch, keepRows, parseUnifiedDiff, rowFor } from "../diff/unified";
 import { useStore } from "../store";
+import { ignoreSuggestions } from "../util/ignore";
+import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { basename, dirname, errorMessage } from "../util/format";
 import { useDarkTheme } from "../util/theme";
 import { PatchView, type DiffStyle } from "./DiffView";
@@ -23,6 +25,7 @@ interface Pick {
  * of the focused file, and the commit box. Keyboard first:
  *   s / u     stage / unstage the focused file, or only the selected diff lines
  *   a         stage everything
+ *   i         add the focused file to .gitignore (right-click for folder / extension)
  *   tab       switch between the two lists
  *   ctrl+enter commit
  */
@@ -42,6 +45,8 @@ export function ChangesPane() {
   const [message, setMessage] = useState("");
   const [amend, setAmend] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number; entry: StatusEntry; side: Side } | null>(null);
+  const setNotice = useStore((s) => s.setNotice);
   const root = useRef<HTMLDivElement>(null);
   const messageBox = useRef<HTMLTextAreaElement>(null);
 
@@ -113,6 +118,34 @@ export function ChangesPane() {
       }
     },
     [wt, pick, entry, busy, range, parsed, refresh, setError],
+  );
+
+  /** Append a pattern to .gitignore, open it in the editor, refresh when the editor returns. */
+  const ignore = useCallback(
+    async (pattern: string) => {
+      if (!wt) return;
+      try {
+        const file = await api.addToGitignore(wt.path, pattern, true);
+        setNotice(`added ${pattern} to ${file.replace(wt.path + "/", "")}`);
+        await refresh();
+      } catch (e) {
+        setError(errorMessage(e));
+      }
+    },
+    [wt, refresh, setError, setNotice],
+  );
+
+  const menuItems = useCallback(
+    (entry: StatusEntry, side: Side): MenuItem[] => {
+      const items: MenuItem[] = [];
+      if (side === "unstaged") items.push({ label: "Stage", hint: "s", onClick: () => void move(true) });
+      else items.push({ label: "Unstage", hint: "u", onClick: () => void move(false) });
+      ignoreSuggestions(entry.path).forEach(([pattern, label], i) => {
+        items.push({ label: `Ignore ${label}`, hint: pattern, separator: i === 0, onClick: () => void ignore(pattern) });
+      });
+      return items;
+    },
+    [move, ignore],
   );
 
   const stageAll = useCallback(async () => {
@@ -204,11 +237,17 @@ export function ChangesPane() {
           e.preventDefault();
           messageBox.current?.focus();
           break;
+        case "i":
+          if (entry && pick) {
+            e.preventDefault();
+            void ignore(ignoreSuggestions(entry.path)[0][0]);
+          }
+          break;
       }
     };
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, [pick, staged, unstaged, move, stageAll, doCommit]);
+  }, [pick, staged, unstaged, move, stageAll, doCommit, entry, ignore]);
 
   const changeStyle = (s: DiffStyle) => {
     setDiffStyle(s);
@@ -221,6 +260,7 @@ export function ChangesPane() {
 
   return (
     <div className="changes" ref={root} tabIndex={0}>
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.entry, menu.side)} onClose={() => setMenu(null)} />}
       <SplitPane
         direction="horizontal"
         initial={340}
@@ -232,8 +272,8 @@ export function ChangesPane() {
             <div className="changes-filter">
               <FilterBox value={query} onChange={setQuery} placeholder="filter files (regex)" />
             </div>
-            <ChangeList title="Unstaged" side="unstaged" entries={unstaged} pick={pick} onPick={setPick} action="s" onAction={() => void move(true)} />
-            <ChangeList title="Staged" side="staged" entries={staged} pick={pick} onPick={setPick} action="u" onAction={() => void move(false)} />
+            <ChangeList title="Unstaged" side="unstaged" entries={unstaged} pick={pick} onPick={setPick} action="s" onAction={() => void move(true)} onMenu={(e, entry) => setMenu({ x: e.clientX, y: e.clientY, entry, side: "unstaged" })} />
+            <ChangeList title="Staged" side="staged" entries={staged} pick={pick} onPick={setPick} action="u" onAction={() => void move(false)} onMenu={(e, entry) => setMenu({ x: e.clientX, y: e.clientY, entry, side: "staged" })} />
             <div className="commit-box">
               <textarea
                 ref={messageBox}
@@ -290,6 +330,7 @@ function ChangeList({
   onPick,
   action,
   onAction,
+  onMenu,
 }: {
   title: string;
   side: Side;
@@ -298,6 +339,7 @@ function ChangeList({
   onPick(p: Pick): void;
   action: string;
   onAction(): void;
+  onMenu(e: React.MouseEvent, entry: StatusEntry): void;
 }) {
   return (
     <div className="change-list" role="listbox" aria-label={title}>
@@ -315,6 +357,11 @@ function ChangeList({
             aria-selected={sel}
             className={`file-row ${sel ? "is-selected" : ""}`}
             onClick={() => onPick({ side, path: e.path })}
+            onContextMenu={(ev) => {
+              ev.preventDefault();
+              onPick({ side, path: e.path });
+              onMenu(ev, e);
+            }}
             onDoubleClick={() => {
               onPick({ side, path: e.path });
               onAction();

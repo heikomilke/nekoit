@@ -51,3 +51,56 @@ pub fn open(dir: &str) -> Result<String, String> {
     }
     Err(format!("no terminal emulator found ({last})"))
 }
+
+/// Open `file` in the configured editor and wait for the command to exit.
+/// `xdg-open` returns immediately, so for it "returning" means "launched".
+pub fn edit(editor: &str, file: &str) -> Result<(), String> {
+    let editor = editor.trim();
+    let (bin, args): (String, Vec<String>) = if editor.is_empty() {
+        ("xdg-open".to_string(), vec![file.to_string()])
+    } else {
+        let parts: Vec<String> = shell_words(editor).into_iter().map(|p| p.replace("{file}", file)).collect();
+        let has_file = editor.contains("{file}");
+        let mut args = parts[1..].to_vec();
+        if !has_file {
+            args.push(file.to_string());
+        }
+        (parts[0].clone(), args)
+    };
+    let status = Command::new(&bin)
+        .args(&args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| format!("{bin}: {e}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("{bin} exited with {status}"))
+    }
+}
+
+/// Minimal shell-style splitting: whitespace separated, single or double quotes group.
+fn shell_words(s: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut quote: Option<char> = None;
+    for c in s.chars() {
+        match (quote, c) {
+            (Some(q), c) if c == q => quote = None,
+            (Some(_), c) => cur.push(c),
+            (None, '"') | (None, '\'') => quote = Some(c),
+            (None, c) if c.is_whitespace() => {
+                if !cur.is_empty() {
+                    out.push(std::mem::take(&mut cur));
+                }
+            }
+            (None, c) => cur.push(c),
+        }
+    }
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+    out
+}

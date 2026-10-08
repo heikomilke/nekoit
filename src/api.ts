@@ -129,6 +129,8 @@ export interface AppConfig {
   lastRepo: string | null;
   lastWorktree: string | null;
   theme: Theme;
+  /** Editor command, `{file}` placeholder; empty = xdg-open. */
+  editor: string;
 }
 
 // --- Commands ------------------------------------------------------------
@@ -168,6 +170,7 @@ export const api = {
   commit: (worktree: string, message: string, amend: boolean, author?: string) =>
     invoke<string>("commit", { worktree, message, amend, author: author ?? null }),
   resolve: (repo: string, rev: string) => invoke<string>("resolve", { repo, rev }),
+  addToGitignore: (worktree: string, pattern: string, openEditor = true) => invoke<string>("add_to_gitignore", { worktree, pattern, openEditor }),
   openTerminal: (dir: string) => invoke<string>("open_terminal", { dir }),
   remotes: (repo: string) => invoke<RemoteInfo[]>("remotes", { repo }),
   fetch: (repo: string, remote: string | null, prune = true) => invoke<RemoteResult>("fetch", { repo, remote, prune }),

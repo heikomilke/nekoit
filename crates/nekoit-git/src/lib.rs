@@ -5,6 +5,7 @@
 
 pub mod diff;
 pub mod discovery;
+pub mod ignore;
 pub mod log;
 pub mod remote;
 pub mod runner;
@@ -13,6 +14,7 @@ pub mod status;
 
 pub use diff::*;
 pub use discovery::*;
+pub use ignore::*;
 pub use log::*;
 pub use remote::*;
 pub use runner::*;

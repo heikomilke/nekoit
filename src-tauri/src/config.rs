@@ -13,6 +13,9 @@ pub struct AppConfig {
     pub last_repo: Option<String>,
     pub last_worktree: Option<String>,
     pub theme: Theme,
+    /// Editor command for opening files; `{file}` is replaced by the path. Empty = `xdg-open`.
+    /// Use a blocking command (e.g. `code --wait {file}`) to have the UI refresh when you close the file.
+    pub editor: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]

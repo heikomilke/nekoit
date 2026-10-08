@@ -65,6 +65,11 @@ opened repo/worktree, theme).
 | `ctrl+q` | quit |
 | `ctrl+w` | minimize the window |
 
+In the changes view, right-click a file for stage/unstage and "Ignore this
+file / folder / *.ext": the pattern is appended to the worktree's
+`.gitignore`, which then opens in your editor (`editor` in the config, e.g.
+`"code --wait {file}"`; empty means `xdg-open`). `i` ignores the focused file.
+
 Fetch, pull (merge, rebase or fast-forward only) and push (plain, set
 upstream, force-with-lease) live in the repo header and act on the active
 worktree.

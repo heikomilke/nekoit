@@ -317,3 +317,6 @@ button { font: inherit; color: inherit; }
 .commit-toolbar .filter { flex: 1; max-width: 640px; }
 .commit-toolbar .filter-input { width: 100%; }
 .flat-dot { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--fg-muted); margin-left: 4px; }
+
+.ctx-menu { position: fixed; }
+.menu-item.has-separator { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; border-radius: 0 0 var(--radius) var(--radius); }

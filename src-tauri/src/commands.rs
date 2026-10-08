@@ -210,3 +210,20 @@ pub async fn refs_containing(state: State<'_, AppState>, repo: String, sha: Stri
 pub async fn open_terminal(dir: String) -> R<String> {
     tauri::async_runtime::spawn_blocking(move || crate::terminal::open(&dir)).await.map_err(|e| e.to_string())?
 }
+
+/// Append an ignore pattern to the worktree's .gitignore, open it in the editor,
+/// and return once the editor command exits.
+#[tauri::command]
+pub async fn add_to_gitignore(state: State<'_, AppState>, worktree: String, pattern: String, open_editor: bool) -> R<String> {
+    let editor = state.config.lock().unwrap().editor.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = g::add_to_gitignore(Path::new(&worktree), &pattern).map_err(err)?;
+        let shown = path.display().to_string();
+        if open_editor {
+            crate::terminal::edit(&editor, &shown)?;
+        }
+        Ok(shown)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}

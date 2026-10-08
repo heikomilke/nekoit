@@ -124,7 +124,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async saveConfig(patch) {
-    const base = get().config ?? { scanRoots: [], repos: [], lastRepo: null, lastWorktree: null, theme: "system" as const };
+    const base = get().config ?? { scanRoots: [], repos: [], lastRepo: null, lastWorktree: null, theme: "system" as const, editor: "" };
     const config = { ...base, ...patch };
     set({ config });
     await api.setConfig(config);
