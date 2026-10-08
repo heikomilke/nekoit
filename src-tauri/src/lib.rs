@@ -21,7 +21,7 @@ pub fn run() {
             let git = nekoit_git::Git::with_sink(Arc::new(move |record| {
                 let _ = handle.emit(GIT_COMMAND_EVENT, record);
             }));
-            app.manage(AppState { git, config: Mutex::new(config::load()) });
+            app.manage(AppState { git: Arc::new(git), config: Mutex::new(config::load()) });
             app.manage(watch::WatchState::default());
             Ok(())
         })

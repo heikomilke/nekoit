@@ -1,8 +1,10 @@
-//! Thin Tauri command layer over `nekoit-git`. Each command maps 1:1 to a
-//! function in the git crate; errors are flattened to strings for the UI.
+//! Thin Tauri command layer over `nekoit-git`. Every command runs its git
+//! work through `blocking`, i.e. on Tauri's blocking thread pool: a
+//! synchronous command would run on the main thread and freeze the window
+//! for the duration of the git call.
 
-use std::path::Path;
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use nekoit_git as g;
 use tauri::{AppHandle, State};
@@ -11,7 +13,7 @@ use crate::config::{self, AppConfig};
 use crate::watch::{self, WatchState};
 
 pub struct AppState {
-    pub git: g::Git,
+    pub git: Arc<g::Git>,
     pub config: Mutex<AppConfig>,
 }
 
@@ -21,13 +23,25 @@ fn err(e: g::GitError) -> String {
     e.to_string()
 }
 
-#[tauri::command]
-pub fn get_config(state: State<AppState>) -> AppConfig {
-    state.config.lock().unwrap().clone()
+/// Run a blocking git closure off the main thread.
+async fn blocking<T: Send + 'static>(git: &Arc<g::Git>, f: impl FnOnce(&g::Git) -> g::Result<T> + Send + 'static) -> R<T> {
+    let git = Arc::clone(git);
+    tauri::async_runtime::spawn_blocking(move || f(&git).map_err(err))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn p(s: &str) -> PathBuf {
+    PathBuf::from(s)
 }
 
 #[tauri::command]
-pub fn set_config(state: State<AppState>, config: AppConfig) -> R<()> {
+pub async fn get_config(state: State<'_, AppState>) -> R<AppConfig> {
+    Ok(state.config.lock().unwrap().clone())
+}
+
+#[tauri::command]
+pub async fn set_config(state: State<'_, AppState>, config: AppConfig) -> R<()> {
     config::save(&config)?;
     *state.config.lock().unwrap() = config;
     Ok(())
@@ -36,133 +50,139 @@ pub fn set_config(state: State<AppState>, config: AppConfig) -> R<()> {
 /// Repositories from all configured scan roots plus manually added repos,
 /// newest activity first.
 #[tauri::command]
-pub fn list_repos(state: State<AppState>) -> R<Vec<g::RepoInfo>> {
+pub async fn list_repos(state: State<'_, AppState>) -> R<Vec<g::RepoInfo>> {
     let cfg = state.config.lock().unwrap().clone();
-    let mut repos = Vec::new();
-    let mut seen = std::collections::BTreeSet::new();
-    for root in &cfg.scan_roots {
-        for r in g::scan(&state.git, Path::new(root), 1).map_err(err)? {
-            if seen.insert(r.id.clone()) {
-                repos.push(r);
+    blocking(&state.git, move |git| {
+        let mut repos = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for root in &cfg.scan_roots {
+            for r in g::scan(git, Path::new(root), 1)? {
+                if seen.insert(r.id.clone()) {
+                    repos.push(r);
+                }
             }
         }
-    }
-    for p in &cfg.repos {
-        if let Ok(r) = g::inspect(&state.git, Path::new(p)) {
-            if seen.insert(r.id.clone()) {
-                repos.push(r);
+        for path in &cfg.repos {
+            if let Ok(r) = g::inspect(git, Path::new(path)) {
+                if seen.insert(r.id.clone()) {
+                    repos.push(r);
+                }
             }
         }
-    }
-    repos.sort_by(|a, b| b.last_activity.cmp(&a.last_activity).then(a.name.cmp(&b.name)));
-    Ok(repos)
+        repos.sort_by(|a, b| b.last_activity.cmp(&a.last_activity).then(a.name.cmp(&b.name)));
+        Ok(repos)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn scan_folder(state: State<AppState>, root: String, depth: u32) -> R<Vec<g::RepoInfo>> {
-    g::scan(&state.git, Path::new(&root), depth.max(1)).map_err(err)
+pub async fn scan_folder(state: State<'_, AppState>, root: String, depth: u32) -> R<Vec<g::RepoInfo>> {
+    blocking(&state.git, move |git| g::scan(git, &p(&root), depth.max(1))).await
 }
 
 #[tauri::command]
-pub fn inspect_repo(state: State<AppState>, path: String) -> R<g::RepoInfo> {
-    g::inspect(&state.git, Path::new(&path)).map_err(err)
+pub async fn inspect_repo(state: State<'_, AppState>, path: String) -> R<g::RepoInfo> {
+    blocking(&state.git, move |git| g::inspect(git, &p(&path))).await
 }
 
 #[tauri::command]
-pub fn worktrees(state: State<AppState>, repo: String) -> R<Vec<g::WorktreeInfo>> {
-    g::worktrees(&state.git, Path::new(&repo)).map_err(err)
+pub async fn worktrees(state: State<'_, AppState>, repo: String) -> R<Vec<g::WorktreeInfo>> {
+    blocking(&state.git, move |git| g::worktrees(git, &p(&repo))).await
 }
 
 #[tauri::command]
-pub fn log(state: State<AppState>, repo: String, options: g::LogOptions) -> R<g::LogPage> {
-    g::log(&state.git, Path::new(&repo), &options).map_err(err)
+pub async fn log(state: State<'_, AppState>, repo: String, options: g::LogOptions) -> R<g::LogPage> {
+    blocking(&state.git, move |git| g::log(git, &p(&repo), &options)).await
 }
 
 #[tauri::command]
-pub fn refs(state: State<AppState>, repo: String) -> R<Vec<g::RefInfo>> {
-    g::refs(&state.git, Path::new(&repo)).map_err(err)
+pub async fn refs(state: State<'_, AppState>, repo: String) -> R<Vec<g::RefInfo>> {
+    blocking(&state.git, move |git| g::refs(git, &p(&repo))).await
 }
 
 #[tauri::command]
-pub fn commit_details(state: State<AppState>, repo: String, rev: String) -> R<g::CommitDetails> {
-    g::commit_details(&state.git, Path::new(&repo), &rev).map_err(err)
+pub async fn commit_details(state: State<'_, AppState>, repo: String, rev: String) -> R<g::CommitDetails> {
+    blocking(&state.git, move |git| g::commit_details(git, &p(&repo), &rev)).await
 }
 
 #[tauri::command]
-pub fn commit_changes(state: State<AppState>, repo: String, sha: String) -> R<Vec<g::FileChange>> {
-    g::commit_changes(&state.git, Path::new(&repo), &sha).map_err(err)
+pub async fn commit_changes(state: State<'_, AppState>, repo: String, sha: String) -> R<Vec<g::FileChange>> {
+    blocking(&state.git, move |git| g::commit_changes(git, &p(&repo), &sha)).await
 }
 
 #[tauri::command]
-pub fn changes_between(state: State<AppState>, repo: String, base: String, target: String) -> R<Vec<g::FileChange>> {
-    g::changes_between(&state.git, Path::new(&repo), &base, &target).map_err(err)
+pub async fn changes_between(state: State<'_, AppState>, repo: String, base: String, target: String) -> R<Vec<g::FileChange>> {
+    blocking(&state.git, move |git| g::changes_between(git, &p(&repo), &base, &target)).await
 }
 
 #[tauri::command]
-pub fn commit_patch(state: State<AppState>, repo: String, sha: String, path: Option<String>) -> R<String> {
-    g::commit_patch(&state.git, Path::new(&repo), &sha, path.as_deref()).map_err(err)
+pub async fn commit_patch(state: State<'_, AppState>, repo: String, sha: String, path: Option<String>) -> R<String> {
+    blocking(&state.git, move |git| g::commit_patch(git, &p(&repo), &sha, path.as_deref())).await
 }
 
 #[tauri::command]
-pub fn range_patch(state: State<AppState>, repo: String, base: String, target: String, path: Option<String>) -> R<String> {
-    g::range_patch(&state.git, Path::new(&repo), &base, &target, path.as_deref()).map_err(err)
+pub async fn range_patch(state: State<'_, AppState>, repo: String, base: String, target: String, path: Option<String>) -> R<String> {
+    blocking(&state.git, move |git| g::range_patch(git, &p(&repo), &base, &target, path.as_deref())).await
 }
 
 #[tauri::command]
-pub fn worktree_patch(state: State<AppState>, worktree: String, path: Option<String>, staged: bool, untracked: bool) -> R<String> {
-    g::worktree_patch(&state.git, Path::new(&worktree), path.as_deref(), staged, untracked).map_err(err)
+pub async fn worktree_patch(state: State<'_, AppState>, worktree: String, path: Option<String>, staged: bool, untracked: bool) -> R<String> {
+    blocking(&state.git, move |git| g::worktree_patch(git, &p(&worktree), path.as_deref(), staged, untracked)).await
 }
 
 /// File contents at a revision (or the working tree when `rev` is null), lossily decoded.
 #[tauri::command]
-pub fn file_at(state: State<AppState>, worktree: String, rev: Option<String>, path: String) -> R<String> {
-    g::file_at(&state.git, Path::new(&worktree), rev.as_deref(), &path)
-        .map(|b| String::from_utf8_lossy(&b).into_owned())
-        .map_err(err)
+pub async fn file_at(state: State<'_, AppState>, worktree: String, rev: Option<String>, path: String) -> R<String> {
+    blocking(&state.git, move |git| {
+        g::file_at(git, &p(&worktree), rev.as_deref(), &path).map(|b| String::from_utf8_lossy(&b).into_owned())
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn status(state: State<AppState>, worktree: String) -> R<g::WorktreeStatus> {
-    g::status(&state.git, Path::new(&worktree), false).map_err(err)
+pub async fn status(state: State<'_, AppState>, worktree: String) -> R<g::WorktreeStatus> {
+    blocking(&state.git, move |git| g::status(git, &p(&worktree), false)).await
 }
 
 #[tauri::command]
-pub fn stage(state: State<AppState>, worktree: String, paths: Vec<String>) -> R<()> {
-    g::stage(&state.git, Path::new(&worktree), &paths).map_err(err)
+pub async fn stage(state: State<'_, AppState>, worktree: String, paths: Vec<String>) -> R<()> {
+    blocking(&state.git, move |git| g::stage(git, &p(&worktree), &paths)).await
 }
 
 #[tauri::command]
-pub fn unstage(state: State<AppState>, worktree: String, paths: Vec<String>) -> R<()> {
-    g::unstage(&state.git, Path::new(&worktree), &paths).map_err(err)
+pub async fn unstage(state: State<'_, AppState>, worktree: String, paths: Vec<String>) -> R<()> {
+    blocking(&state.git, move |git| g::unstage(git, &p(&worktree), &paths)).await
 }
 
 #[tauri::command]
-pub fn apply_to_index(state: State<AppState>, worktree: String, patch: String, reverse: bool) -> R<()> {
-    g::apply_to_index(&state.git, Path::new(&worktree), &patch, reverse).map_err(err)
+pub async fn apply_to_index(state: State<'_, AppState>, worktree: String, patch: String, reverse: bool) -> R<()> {
+    blocking(&state.git, move |git| g::apply_to_index(git, &p(&worktree), &patch, reverse)).await
 }
 
 #[tauri::command]
-pub fn discard(state: State<AppState>, worktree: String, tracked: Vec<String>, untracked: Vec<String>) -> R<()> {
-    g::discard(&state.git, Path::new(&worktree), &tracked, &untracked).map_err(err)
+pub async fn discard(state: State<'_, AppState>, worktree: String, tracked: Vec<String>, untracked: Vec<String>) -> R<()> {
+    blocking(&state.git, move |git| g::discard(git, &p(&worktree), &tracked, &untracked)).await
 }
 
 #[tauri::command]
-pub fn commit(state: State<AppState>, worktree: String, message: String, amend: bool, author: Option<String>) -> R<String> {
-    g::commit(&state.git, Path::new(&worktree), &message, amend, author.as_deref()).map_err(err)
+pub async fn commit(state: State<'_, AppState>, worktree: String, message: String, amend: bool, author: Option<String>) -> R<String> {
+    blocking(&state.git, move |git| g::commit(git, &p(&worktree), &message, amend, author.as_deref())).await
 }
 
 #[tauri::command]
-pub fn resolve(state: State<AppState>, repo: String, rev: String) -> R<String> {
-    g::resolve(&state.git, Path::new(&repo), &rev).map_err(err)
+pub async fn resolve(state: State<'_, AppState>, repo: String, rev: String) -> R<String> {
+    blocking(&state.git, move |git| g::resolve(git, &p(&repo), &rev)).await
 }
 
 /// Watch the repository's git dir; emits `repo-changed` events when refs change.
 #[tauri::command]
-pub fn watch_repo(app: AppHandle, state: State<WatchState>, common_dir: String) {
+pub async fn watch_repo(app: AppHandle, state: State<'_, WatchState>, common_dir: String) -> R<()> {
     watch::watch(app, &state, common_dir);
+    Ok(())
 }
 
 #[tauri::command]
-pub fn unwatch_repo(state: State<WatchState>) {
+pub async fn unwatch_repo(state: State<'_, WatchState>) -> R<()> {
     watch::unwatch(&state);
+    Ok(())
 }
