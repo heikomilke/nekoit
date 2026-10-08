@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -92,6 +92,13 @@ describe("round trip through git apply --cached", () => {
     const pn = buildPartialPatch(n, (l) => l.text === "b")!;
     execFileSync("git", ["apply", "--cached", "--recount", "-"], { cwd: dir, input: pn });
     expect(git(dir, "show", ":n.txt")).toBe("b\n");
+
+    // discard only "two and a half" from the working tree: the unstage-flavoured patch's
+    // new side matches the file on disk, so reverse-applying it removes just that line
+    const work = parseUnifiedDiff(git(dir, "diff", "--no-color", "--no-ext-diff")).find((x) => x.newPath === "f.txt")!;
+    const drop = buildPartialPatch(work, (l) => l.text === "two" || l.text === "TWO", true)!;
+    execFileSync("git", ["apply", "--recount", "--reverse", "-"], { cwd: dir, input: drop });
+    expect(readFileSync(join(dir, "f.txt"), "utf8")).toBe("one\ntwo\ntwo and a half\nthree\nfour\nfive\n");
 
     // unstage "five" again via reverse
     const staged = parseUnifiedDiff(git(dir, "diff", "--cached", "--no-color", "--no-ext-diff"));

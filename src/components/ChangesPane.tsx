@@ -2,7 +2,8 @@ import type { SelectedLineRange } from "@pierre/diffs/react";
 import { Check, Columns2, Rows3 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type StatusEntry } from "../api";
-import { buildPartialPatch, keepRows, parseUnifiedDiff, rowFor } from "../diff/unified";
+import { buildPartialPatch, keepRows, parseUnifiedDiff, rowFor, type DiffFile } from "../diff/unified";
+import type { SelectedLineRange as Range } from "@pierre/diffs/react";
 import { useStore } from "../store";
 import { ignoreSuggestions } from "../util/ignore";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
@@ -26,7 +27,7 @@ interface Pick {
  *   s / u     stage / unstage the focused file, or only the selected diff lines
  *   a         stage everything
  *   i         add the focused file to .gitignore (right-click for folder / extension)
- *   r r       discard the focused file's changes (second press confirms)
+ *   r r       discard the focused file's changes, or only the selected lines (second press confirms)
  *   tab       switch between the two lists
  *   ctrl+enter commit
  */
@@ -138,17 +139,38 @@ export function ChangesPane() {
     [wt, refresh, setError, setNotice],
   );
 
-  /** Discard the focused file's working changes (and index changes when picked from Staged). */
+  /**
+   * Discard the focused file's working changes (and index changes when picked
+   * from Staged), or only the selected lines when a range is active on the
+   * unstaged diff.
+   */
   const discard = useCallback(async () => {
     if (!wt || !pick || !entry || busy) return;
-    if (armed !== entry.path) {
-      setArmed(entry.path);
-      setTimeout(() => setArmed((a) => (a === entry.path ? null : a)), 3000);
+    const lines = range && parsed && pick.side === "unstaged" && !entry.untracked;
+    const key = lines ? `${entry.path}:${range.start}-${range.end}` : entry.path;
+    if (armed !== key) {
+      setArmed(key);
+      setTimeout(() => setArmed((a) => (a === key ? null : a)), 3000);
       return;
     }
     setArmed(null);
     setBusy(true);
     try {
+      if (lines) {
+        const from = rowFor(parsed, range.start, range.side ?? "additions");
+        const to = rowFor(parsed, range.end, range.endSide ?? range.side ?? "additions");
+        if (from !== null && to !== null) {
+          // The unstage-flavoured patch's new side matches the file on disk; reverse-apply it.
+          const partial = buildPartialPatch(parsed, keepRows(from, to), true);
+          if (partial) await api.applyToWorktree(wt.path, partial, true);
+          setNotice(`discarded selected lines in ${entry.path}`);
+          await refresh();
+          const p = await api.worktreePatch(wt.path, pick.path, false, false);
+          setPatch(p);
+          setRange(null);
+        }
+        return;
+      }
       if (pick.side === "staged") await api.unstage(wt.path, [entry.path]);
       if (entry.untracked) await api.discard(wt.path, [], [entry.path]);
       else await api.discard(wt.path, [entry.path], []);
@@ -159,7 +181,7 @@ export function ChangesPane() {
     } finally {
       setBusy(false);
     }
-  }, [wt, pick, entry, busy, armed, refresh, setError, setNotice]);
+  }, [wt, pick, entry, busy, armed, range, parsed, refresh, setError, setNotice]);
 
   const menuItems = useCallback(
     (entry: StatusEntry, side: Side): MenuItem[] => {
@@ -275,16 +297,17 @@ export function ChangesPane() {
           void discard();
           break;
         case "Escape":
-          if (armed) {
+          if (armed || range) {
             e.stopPropagation();
             setArmed(null);
+            setRange(null);
           }
           break;
       }
     };
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, [pick, staged, unstaged, move, stageAll, doCommit, entry, ignore, discard, armed]);
+  }, [pick, staged, unstaged, move, stageAll, doCommit, entry, ignore, discard, armed, range]);
 
   const changeStyle = (s: DiffStyle) => {
     setDiffStyle(s);
@@ -293,8 +316,16 @@ export function ChangesPane() {
 
   if (!wt) return <div className="details-empty muted">No worktree selected.</div>;
 
-  const lineHint = range ? (range.start === range.end ? "1 line selected" : `lines ${Math.min(range.start, range.end)}–${Math.max(range.start, range.end)} selected`) : null;
-  const armHint = armed && entry && armed === entry.path ? (entry.untracked ? `delete ${basename(entry.path)}? press r again, Esc to cancel` : `discard changes to ${basename(entry.path)}? press r again, Esc to cancel`) : null;
+  const selectedCount = range && parsed ? countSelectedChanges(parsed, range) : 0;
+  const lineHint = range ? (range.start === range.end ? `line ${range.start} selected` : `lines ${Math.min(range.start, range.end)}–${Math.max(range.start, range.end)} selected`) : null;
+  const armHint =
+    armed && entry && armed.startsWith(entry.path)
+      ? armed.includes(":")
+        ? `discard the selected lines in ${basename(entry.path)}? press r again, Esc to cancel`
+        : entry.untracked
+          ? `delete ${basename(entry.path)}? press r again, Esc to cancel`
+          : `discard changes to ${basename(entry.path)}? press r again, Esc to cancel`
+      : null;
 
   return (
     <div className="changes" ref={root} tabIndex={0}>
@@ -341,7 +372,17 @@ export function ChangesPane() {
           <div className="diff-pane changes-diff">
             <div className="changes-diff-head">
               <span className="mono">{pick?.path ?? ""}</span>
-              {armHint ? <span className="arm-hint">{armHint}</span> : <span className="muted">{lineHint ?? (pick ? "drag over line numbers to pick lines, then s / u · r r discards" : "")}</span>}
+              {armHint ? (
+                <span className="arm-hint">{armHint}</span>
+              ) : range ? (
+                <span className="sel-pill" title="Line selection: actions below apply to these lines only">
+                  <span className="sel-dot" />
+                  {lineHint} · {selectedCount} change{selectedCount === 1 ? "" : "s"}
+                  <span className="sel-keys">{pick?.side === "unstaged" ? "s stage · r r discard" : "u unstage"} · Esc clear</span>
+                </span>
+              ) : (
+                <span className="muted">{pick ? (pick.side === "unstaged" ? "whole file: s stages · r r discards · drag over line numbers to pick lines" : "whole file: u unstages · drag over line numbers to pick lines") : ""}</span>
+              )}
               <span className="spacer" />
               <button className={`btn btn-icon ${diffStyle === "unified" ? "is-active" : ""}`} onClick={() => changeStyle("unified")} title="Unified">
                 <Rows3 size={14} />
@@ -415,4 +456,15 @@ function ChangeList({
       {entries.length === 0 && <div className="muted pad">nothing</div>}
     </div>
   );
+}
+
+/** Number of + / - lines inside a renderer selection. */
+function countSelectedChanges(file: DiffFile, range: Range): number {
+  const from = rowFor(file, range.start, range.side ?? "additions");
+  const to = rowFor(file, range.end, range.endSide ?? range.side ?? "additions");
+  if (from === null || to === null) return 0;
+  const keep = keepRows(from, to);
+  let n = 0;
+  for (const h of file.hunks) for (const l of h.lines) if (l.kind !== "context" && keep(l)) n++;
+  return n;
 }

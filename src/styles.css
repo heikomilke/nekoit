@@ -321,3 +321,6 @@ button { font: inherit; color: inherit; }
 .ctx-menu { position: fixed; }
 .menu-item.has-separator { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; border-radius: 0 0 var(--radius) var(--radius); }
 .arm-hint { color: var(--danger); font-weight: 600; }
+.sel-pill { display: inline-flex; align-items: center; gap: 8px; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 1px solid var(--accent); color: var(--fg); font-size: 12px; }
+.sel-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.sel-keys { color: var(--fg-muted); font-family: var(--font-mono); font-size: 11px; }

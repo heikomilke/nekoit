@@ -28,6 +28,11 @@ function useDiffOptions(p: Common): Options {
       stickyHeader: true,
       enableLineSelection: p.enableLineSelection ?? false,
       onLineSelected: p.onLineSelected,
+      // Selected lines must be unmistakable: accent tint plus a bar in the gutter.
+      unsafeCSS: p.enableLineSelection
+        ? `[data-selected-line] { background: color-mix(in srgb, #6c9cff 26%, transparent) !important; box-shadow: inset 3px 0 0 #6c9cff; }
+           [data-selected-line] [data-line-number], [data-selected-line] .line-number { color: #6c9cff !important; font-weight: 700; }`
+        : undefined,
     }),
     [p.diffStyle, p.dark, p.enableLineSelection, p.onLineSelected],
   );

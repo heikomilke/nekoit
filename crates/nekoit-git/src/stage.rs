@@ -40,6 +40,18 @@ pub fn apply_to_index(git: &Git, worktree: &Path, patch: &str, reverse: bool) ->
     git.run_with_stdin(worktree, &args, patch.as_bytes()).map(|_| ())
 }
 
+/// Apply a (partial) unified diff to the working tree, index untouched. With
+/// `reverse` this is how selected lines are discarded: the UI builds a patch
+/// whose new side matches the file on disk and reverse-applies it.
+pub fn apply_to_worktree(git: &Git, worktree: &Path, patch: &str, reverse: bool) -> Result<()> {
+    let mut args = vec!["apply", "--whitespace=nowarn", "--recount"];
+    if reverse {
+        args.push("--reverse");
+    }
+    args.push("-");
+    git.run_with_stdin(worktree, &args, patch.as_bytes()).map(|_| ())
+}
+
 /// Discard worktree changes for paths (`git restore --worktree`); untracked files are deleted with `clean`.
 pub fn discard(git: &Git, worktree: &Path, tracked: &[String], untracked: &[String]) -> Result<()> {
     if !tracked.is_empty() {

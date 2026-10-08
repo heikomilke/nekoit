@@ -165,6 +165,8 @@ export const api = {
   unstage: (worktree: string, paths: string[]) => invoke<void>("unstage", { worktree, paths }),
   applyToIndex: (worktree: string, patch: string, reverse: boolean) =>
     invoke<void>("apply_to_index", { worktree, patch, reverse }),
+  applyToWorktree: (worktree: string, patch: string, reverse: boolean) =>
+    invoke<void>("apply_to_worktree", { worktree, patch, reverse }),
   discard: (worktree: string, tracked: string[], untracked: string[]) =>
     invoke<void>("discard", { worktree, tracked, untracked }),
   commit: (worktree: string, message: string, amend: boolean, author?: string) =>

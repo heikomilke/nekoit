@@ -45,6 +45,7 @@ pub fn run() {
             commands::stage,
             commands::unstage,
             commands::apply_to_index,
+            commands::apply_to_worktree,
             commands::discard,
             commands::commit,
             commands::resolve,
