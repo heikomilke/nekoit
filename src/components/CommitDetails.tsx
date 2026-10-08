@@ -166,8 +166,7 @@ export function CommitDetailsPane() {
     const wt = current?.worktree;
     if (!wt || !target || busy || pair) return;
     const path = selectedFiles.length === 1 ? selectedFiles[0] : null;
-    const single = parseUnifiedDiff(patch)[0];
-    const lines = !!lineRange && !!path && !!single;
+    const lines = !!lineRange && !!path;
     const key = `${target}:${path ?? "*"}:${lines ? `${lineRange.start}-${lineRange.end}` : ""}`;
     if (armed !== key) {
       setArmed(key);
@@ -177,8 +176,15 @@ export function CommitDetailsPane() {
     setArmed(null);
     setBusy(true);
     try {
-      let toApply = patch;
+      // Fetch the patch for exactly what is selected right now; never trust the
+      // displayed patch state, which may still be loading for a freshly picked file.
+      let toApply = range
+        ? await api.rangePatch(repoDir, range.base, range.target, path ?? undefined)
+        : await api.commitPatch(repoDir, target, path ?? undefined);
+      const files = parseUnifiedDiff(toApply);
+      if (path && files.length !== 1) throw new Error(`expected one file in the patch for ${path}, got ${files.length}`);
       if (lines) {
+        const single = files[0];
         const from = rowFor(single, lineRange.start, lineRange.side ?? "additions");
         const to = rowFor(single, lineRange.end, lineRange.endSide ?? lineRange.side ?? "additions");
         if (from === null || to === null) return;
@@ -200,7 +206,7 @@ export function CommitDetailsPane() {
     } finally {
       setBusy(false);
     }
-  }, [current?.worktree, target, busy, pair, selectedFiles, patch, lineRange, armed, refreshStatus, setNotice, setError, setCommitDraft, select, details?.subject]);
+  }, [current?.worktree, target, busy, pair, selectedFiles, range, repoDir, lineRange, armed, refreshStatus, setNotice, setError, setCommitDraft, select, details?.subject]);
 
   useEffect(() => {
     const el = rootRef.current;
