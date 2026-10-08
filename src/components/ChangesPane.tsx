@@ -7,6 +7,7 @@ import { useStore } from "../store";
 import { basename, dirname, errorMessage } from "../util/format";
 import { useDarkTheme } from "../util/theme";
 import { PatchView, type DiffStyle } from "./DiffView";
+import { FilterBox, usePathFilter } from "./FilterBox";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { SplitPane } from "./SplitPane";
 
@@ -44,8 +45,11 @@ export function ChangesPane() {
   const root = useRef<HTMLDivElement>(null);
   const messageBox = useRef<HTMLTextAreaElement>(null);
 
-  const unstaged = useMemo(() => (status?.entries ?? []).filter((e) => e.worktree !== "." || e.untracked || e.unmerged), [status]);
-  const staged = useMemo(() => (status?.entries ?? []).filter((e) => e.index !== "." && !e.untracked && !e.unmerged), [status]);
+  const [query, setQuery] = useState("");
+  const matches = usePathFilter(query);
+  const unstaged = useMemo(() => (status?.entries ?? []).filter((e) => (e.worktree !== "." || e.untracked || e.unmerged) && matches(e.path)), [status, matches]);
+  const staged = useMemo(() => (status?.entries ?? []).filter((e) => e.index !== "." && !e.untracked && !e.unmerged 
+ && matches(e.path)), [status, matches]);
   const entry = pick ? (pick.side === "unstaged" ? unstaged : staged).find((e) => e.path === pick.path) : undefined;
 
   // Keep a sensible pick when the lists change under us.
@@ -225,6 +229,9 @@ export function ChangesPane() {
         className="changes-split"
         first={
           <div className="changes-lists">
+            <div className="changes-filter">
+              <FilterBox value={query} onChange={setQuery} placeholder="filter files (regex)" />
+            </div>
             <ChangeList title="Unstaged" side="unstaged" entries={unstaged} pick={pick} onPick={setPick} action="s" onAction={() => void move(true)} />
             <ChangeList title="Staged" side="staged" entries={staged} pick={pick} onPick={setPick} action="u" onAction={() => void move(false)} />
             <div className="commit-box">

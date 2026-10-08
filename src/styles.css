@@ -297,3 +297,15 @@ button { font: inherit; color: inherit; }
 .track-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--chip-color); box-shadow: 0 0 0 2px color-mix(in srgb, var(--chip-color) 30%, transparent); }
 .containing { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: baseline; }
 .containing-ref { font-family: var(--font-mono); font-size: 11px; padding: 0 5px; border: 1px solid var(--border); border-radius: 4px; }
+
+/* ---------- filter box ---------- */
+.filter { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 0 6px; height: 20px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); text-transform: none; letter-spacing: 0; font-weight: 400; }
+.filter:focus-within { border-color: var(--accent); }
+.filter.is-plain { border-color: var(--warn); }
+.filter-input { border: 0; background: transparent; color: var(--fg); font: 12px var(--font-mono); width: 120px; outline: none; }
+.filter-input::placeholder { color: var(--fg-muted); font-family: var(--font-ui); }
+.filter-clear { border: 0; background: transparent; cursor: pointer; display: inline-flex; padding: 1px; border-radius: 50%; color: var(--fg-muted); }
+.filter-clear:hover { color: var(--fg); }
+.changes-filter { display: flex; padding: 6px 8px 2px; }
+.changes-filter .filter { margin-left: 0; width: 100%; }
+.changes-filter .filter-input { width: 100%; }

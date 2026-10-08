@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { FileChange } from "../api";
 import { basename, dirname } from "../util/format";
+import { FilterBox, usePathFilter } from "./FilterBox";
 
 interface Props {
   files: FileChange[];
@@ -13,12 +15,16 @@ const STATUS_LABEL: Record<string, string> = { A: "added", M: "modified", D: "de
 
 /** Changed files of a commit or range; ctrl-click a second file to compare the two. */
 export function FileList({ files, selected, onSelect, title }: Props) {
+  const [query, setQuery] = useState("");
+  const matches = usePathFilter(query);
+  const shown = files.filter((f) => matches(f.path) || (f.oldPath ? matches(f.oldPath) : false));
   return (
     <div className="file-list" role="listbox" aria-label={title}>
       <div className="pane-title">
-        {title} <span className="muted">{files.length}</span>
+        {title} <span className="muted">{query ? `${shown.length} of ${files.length}` : files.length}</span>
+        <FilterBox value={query} onChange={setQuery} />
       </div>
-      {files.map((f) => {
+      {shown.map((f) => {
         const sel = selected.includes(f.path);
         return (
           <div
@@ -36,6 +42,7 @@ export function FileList({ files, selected, onSelect, title }: Props) {
         );
       })}
       {files.length === 0 && <div className="muted pad">No changes.</div>}
+      {files.length > 0 && shown.length === 0 && <div className="muted pad">Nothing matches the filter.</div>}
     </div>
   );
 }
