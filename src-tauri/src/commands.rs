@@ -204,3 +204,9 @@ pub async fn push(
 pub async fn refs_containing(state: State<'_, AppState>, repo: String, sha: String) -> R<Vec<String>> {
     blocking(&state.git, move |git| g::refs_containing(git, &p(&repo), &sha, 30)).await
 }
+
+/// Open the system terminal in `dir`; returns the emulator that was launched.
+#[tauri::command]
+pub async fn open_terminal(dir: String) -> R<String> {
+    tauri::async_runtime::spawn_blocking(move || crate::terminal::open(&dir)).await.map_err(|e| e.to_string())?
+}

@@ -1,4 +1,5 @@
-import { ArrowLeft, RefreshCw, Terminal } from "lucide-react";
+import { ArrowLeft, RefreshCw, ScrollText, SquareTerminal } from "lucide-react";
+import { api } from "../api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChangesPane } from "../components/ChangesPane";
 import { CommitDetailsPane } from "../components/CommitDetails";
@@ -16,20 +17,30 @@ export function RepoView() {
   const closeRepo = useStore((s) => s.closeRepo);
   const reloadLog = useStore((s) => s.reloadLog);
   const toggleLog = useStore((s) => s.toggleLog);
+  const setError = useStore((s) => s.setError);
   const list = useRef<CommitListHandle>(null);
   const [colorBySha, setColorBySha] = useState<Map<string, number>>(new Map());
   const onLayout = useCallback((m: Map<string, number>) => setColorBySha(m), []);
 
+  const openTerminal = useCallback(() => {
+    const dir = useStore.getState().current?.worktree?.path;
+    if (dir) api.openTerminal(dir).catch((e) => setError(String(e)));
+  }, [setError]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) closeRepo();
+      if (e.key === "t" && e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        openTerminal();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [closeRepo]);
+  }, [closeRepo, openTerminal]);
 
   if (!current) return null;
-  const { repo } = current;
+  const { repo, worktree } = current;
 
   return (
     <div className="repo-view">
@@ -45,8 +56,11 @@ export function RepoView() {
           <button className="btn btn-icon" onClick={() => void reloadLog()} title="Refresh (F5)">
             <RefreshCw size={14} className={current.loadingLog ? "spin" : ""} />
           </button>
+          <button className="btn btn-icon" onClick={openTerminal} disabled={!worktree} title={worktree ? `Open terminal in ${worktree.path} (ctrl+t)` : "No worktree"}>
+            <SquareTerminal size={14} />
+          </button>
           <button className="btn btn-icon" onClick={toggleLog} title="Command log (ctrl+`)">
-            <Terminal size={14} />
+            <ScrollText size={14} />
           </button>
         </header>
         <WorktreeBar colorBySha={colorBySha} onJump={(sha) => list.current?.scrollTo(sha)} />

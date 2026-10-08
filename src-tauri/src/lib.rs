@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod terminal;
 
 use std::sync::{Arc, Mutex};
 
@@ -47,6 +48,7 @@ pub fn run() {
             commands::discard,
             commands::commit,
             commands::resolve,
+            commands::open_terminal,
             commands::remotes,
             commands::fetch,
             commands::pull,

@@ -56,6 +56,7 @@ opened repo/worktree, theme).
 | `↑` `↓` / `j` `k` | move commit selection |
 | `shift`+arrow, `ctrl`+click | select a second commit → diff the range |
 | `ctrl`+click in file list | select a second file → diff the two files |
+| `ctrl+t` | open the system terminal in the active worktree |
 | `F5` | reload log |
 | `Esc` | back to the dashboard |
 | ``ctrl+` `` | toggle the git command log |
