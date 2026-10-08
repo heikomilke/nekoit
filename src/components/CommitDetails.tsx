@@ -66,14 +66,16 @@ export function CommitDetailsPane() {
     setContaining([]);
     if (!repoDir || !target) return;
     let live = true;
+    // origin/HEAD shortens to the bare remote name; drop those.
+    const remoteNames = new Set((current?.refs ?? []).filter((r) => r.kind === "remote").map((r) => r.short.split("/")[0]));
     api
       .refsContaining(repoDir, target)
-      .then((r) => live && setContaining(r))
+      .then((r) => live && setContaining(r.filter((n) => !remoteNames.has(n))))
       .catch(() => live && setContaining([]));
     return () => {
       live = false;
     };
-  }, [repoDir, target]);
+  }, [repoDir, target, current?.refs]);
 
   // Load header + file list whenever the commit selection changes.
   useEffect(() => {
