@@ -7,6 +7,7 @@ import { useStore } from "../store";
 import { basename, dirname, errorMessage } from "../util/format";
 import { useDarkTheme } from "../util/theme";
 import { PatchView, type DiffStyle } from "./DiffView";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { SplitPane } from "./SplitPane";
 
 type Side = "unstaged" | "staged";
@@ -264,7 +265,9 @@ export function ChangesPane() {
                 <Columns2 size={14} />
               </button>
             </div>
-            {pick && <PatchView dark={dark} diffStyle={diffStyle} patch={patch} enableLineSelection={!entry?.untracked} selectedLines={range} onLineSelected={setRange} />}
+            <ErrorBoundary resetKey={patch}>
+              {pick && <PatchView dark={dark} diffStyle={diffStyle} patch={patch} enableLineSelection={!entry?.untracked} selectedLines={range} onLineSelected={setRange} />}
+            </ErrorBoundary>
           </div>
         }
       />

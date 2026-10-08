@@ -1,5 +1,5 @@
-import { parseDiffFromFile } from "@pierre/diffs";
-import { FileDiff, PatchDiff, type FileDiffOptions, type SelectedLineRange } from "@pierre/diffs/react";
+import { parseDiffFromFile, processPatch } from "@pierre/diffs";
+import { FileDiff, type FileDiffOptions, type SelectedLineRange } from "@pierre/diffs/react";
 import { useMemo } from "react";
 
 export type DiffStyle = "unified" | "split";
@@ -36,8 +36,15 @@ function useDiffOptions(p: Common): Options {
 /** Renders one or more files from a unified diff produced by git. */
 export function PatchView(props: Common & { patch: string }) {
   const options = useDiffOptions(props);
-  if (!props.patch.trim()) return <div className="diff-empty muted">No textual changes.</div>;
-  return <PatchDiff patch={props.patch} options={options} selectedLines={props.selectedLines ?? null} className="diff" />;
+  const files = useMemo(() => (props.patch.trim() ? processPatch(props.patch).files : []), [props.patch]);
+  if (files.length === 0) return <div className="diff-empty muted">No textual changes.</div>;
+  return (
+    <div className="diff-files">
+      {files.map((f) => (
+        <FileDiff key={f.name} fileDiff={f} options={options} selectedLines={files.length === 1 ? (props.selectedLines ?? null) : null} className="diff" />
+      ))}
+    </div>
+  );
 }
 
 /** Ad-hoc diff between two arbitrary file contents. */

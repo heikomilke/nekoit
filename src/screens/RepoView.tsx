@@ -2,6 +2,7 @@ import { ArrowLeft, RefreshCw, Terminal } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChangesPane } from "../components/ChangesPane";
 import { CommitDetailsPane } from "../components/CommitDetails";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { CommitList, type CommitListHandle } from "../components/CommitList";
 import { SplitPane } from "../components/SplitPane";
 import { WorktreeBar } from "../components/WorktreeBar";
@@ -59,7 +60,7 @@ export function RepoView() {
         storageKey="repo-main"
         className="repo-split"
         first={<CommitList ref={list} onLayout={onLayout} />}
-        second={current.selected[0] === WORKDIR ? <ChangesPane /> : <CommitDetailsPane />}
+        second={<ErrorBoundary resetKey={current.selected[0]}>{current.selected[0] === WORKDIR ? <ChangesPane /> : <CommitDetailsPane />}</ErrorBoundary>}
       />
     </div>
   );

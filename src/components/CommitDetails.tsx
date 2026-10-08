@@ -4,6 +4,7 @@ import { api, type CommitDetails as Details, type FileChange } from "../api";
 import { useStore } from "../store";
 import { absoluteTime, errorMessage, shortSha } from "../util/format";
 import { useDarkTheme } from "../util/theme";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { FilesView, PatchView, type DiffStyle } from "./DiffView";
 import { FileList } from "./FileList";
 import { SplitPane } from "./SplitPane";
@@ -168,11 +169,13 @@ export function CommitDetailsPane() {
         first={<FileList files={files} selected={selectedFiles} onSelect={onSelectFile} title={range ? "Changed between" : "Changed files"} />}
         second={
           <div className="diff-pane">
-            {pair ? (
-              <FilesView dark={dark} diffStyle={diffStyle} oldName={pair.a} oldContents={pair.aText} newName={pair.b} newContents={pair.bText} />
-            ) : (
-              <PatchView dark={dark} diffStyle={diffStyle} patch={patch} />
-            )}
+            <ErrorBoundary resetKey={pair ?? patch}>
+              {pair ? (
+                <FilesView dark={dark} diffStyle={diffStyle} oldName={pair.a} oldContents={pair.aText} newName={pair.b} newContents={pair.bText} />
+              ) : (
+                <PatchView dark={dark} diffStyle={diffStyle} patch={patch} />
+              )}
+            </ErrorBoundary>
           </div>
         }
       />

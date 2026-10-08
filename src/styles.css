@@ -217,6 +217,7 @@ button { font: inherit; color: inherit; }
 .diff-pane { flex: 1; min-height: 0; overflow: auto; }
 .diff-empty { padding: 20px; }
 .diff { font-family: var(--font-mono); }
+.diff-files { display: flex; flex-direction: column; gap: 10px; padding: 8px; }
 
 /* ---------- command log ---------- */
 .cmdlog { height: 220px; flex: none; border-top: 1px solid var(--border); background: var(--bg-panel); display: flex; flex-direction: column; }
@@ -253,3 +254,5 @@ button { font: inherit; color: inherit; }
 /* virtual working-changes row */
 .commit-row.is-workdir .subject-text { font-style: italic; color: var(--fg-muted); }
 .commit-row.is-workdir .subject-text.has-changes { color: var(--fg); }
+.render-error { padding: 14px; color: var(--danger); }
+.render-error pre { white-space: pre-wrap; font: 12px/1.4 var(--font-mono); color: var(--fg-muted); user-select: text; }
