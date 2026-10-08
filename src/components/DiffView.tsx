@@ -1,6 +1,11 @@
 import { parseDiffFromFile, processPatch } from "@pierre/diffs";
 import { FileDiff, type FileDiffOptions, type SelectedLineRange } from "@pierre/diffs/react";
 import { useMemo } from "react";
+import { FLASH_ATTR } from "./DiffNav";
+
+/** One-shot highlight for the line a jump landed on; the attribute is set by DiffNav. */
+const FLASH_CSS = `@keyframes nekoit-flash { from { box-shadow: inset 0 0 0 999px color-mix(in srgb, #6c9cff 45%, transparent); } to { box-shadow: inset 0 0 0 999px transparent; } }
+  [${FLASH_ATTR}] { animation: nekoit-flash 1.1s ease-out; }`;
 
 export type DiffStyle = "unified" | "split";
 
@@ -31,8 +36,9 @@ function useDiffOptions(p: Common): Options {
       // Selected lines must be unmistakable: accent tint plus a bar in the gutter.
       unsafeCSS: p.enableLineSelection
         ? `[data-selected-line] { background: color-mix(in srgb, #6c9cff 26%, transparent) !important; box-shadow: inset 3px 0 0 #6c9cff; }
-           [data-selected-line] [data-line-number], [data-selected-line] .line-number { color: #6c9cff !important; font-weight: 700; }`
-        : undefined,
+           [data-selected-line] [data-line-number], [data-selected-line] .line-number { color: #6c9cff !important; font-weight: 700; }
+           ${FLASH_CSS}`
+        : FLASH_CSS,
     }),
     [p.diffStyle, p.dark, p.enableLineSelection, p.onLineSelected],
   );

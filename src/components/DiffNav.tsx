@@ -12,6 +12,8 @@ export interface ChangeBlock {
   line: number;
   side: "additions" | "deletions";
   kind: "add" | "del" | "mixed";
+  /** Every changed line of the block, for highlighting it after a jump. */
+  lines: { line: number; side: "additions" | "deletions" }[];
 }
 
 /** Group changed lines into blocks; `totalRows` counts every rendered line across all files. */
@@ -30,16 +32,12 @@ export function changeBlocks(files: DiffFile[]): { blocks: ChangeBlock[]; totalR
           continue;
         }
         const kind = l.kind;
+        const at = { line: kind === "add" ? (l.newNo ?? 0) : (l.oldNo ?? 0), side: kind === "add" ? ("additions" as const) : ("deletions" as const) };
         if (open && l.row === lastRow + 1) {
           if (open.kind !== kind) open.kind = "mixed";
+          open.lines.push(at);
         } else {
-          open = {
-            file: fi,
-            row: offset + l.row,
-            line: kind === "add" ? (l.newNo ?? 0) : (l.oldNo ?? 0),
-            side: kind === "add" ? "additions" : "deletions",
-            kind,
-          };
+          open = { file: fi, row: offset + l.row, line: at.line, side: at.side, kind, lines: [at] };
           blocks.push(open);
         }
         lastRow = l.row;
@@ -54,18 +52,41 @@ function scrollerOf(wrap: HTMLElement): HTMLElement | null {
   return wrap.querySelector<HTMLElement>(":scope > .diff-files, :scope > .diff");
 }
 
+function lineElements(host: HTMLElement | undefined, line: number, side: "additions" | "deletions"): HTMLElement[] {
+  const type = side === "additions" ? "change-addition" : "change-deletion";
+  return Array.from(host?.shadowRoot?.querySelectorAll<HTMLElement>(`[data-line="${line}"][data-line-type="${type}"]`) ?? []);
+}
+
+/** Attribute the renderer's `unsafeCSS` animates; see DiffView. */
+export const FLASH_ATTR = "data-nekoit-flash";
+let flashTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Highlight the block's lines once so the eye finds it among neighbours already on screen. */
+function flash(host: HTMLElement | undefined, b: ChangeBlock) {
+  const root = host?.shadowRoot;
+  if (!root) return;
+  clearTimeout(flashTimer);
+  for (const el of root.querySelectorAll(`[${FLASH_ATTR}]`)) el.removeAttribute(FLASH_ATTR);
+  const els = b.lines.flatMap((l) => lineElements(host, l.line, l.side));
+  // Re-adding the attribute in the next frame restarts the animation on a repeated jump.
+  requestAnimationFrame(() => {
+    for (const el of els) el.setAttribute(FLASH_ATTR, "");
+    flashTimer = setTimeout(() => els.forEach((el) => el.removeAttribute(FLASH_ATTR)), 1200);
+  });
+}
+
 /** Scroll the diff so the block sits mid-pane; falls back to a proportional position. */
 function jumpToBlock(wrap: HTMLElement, b: ChangeBlock, totalRows: number) {
   const pane = scrollerOf(wrap);
   if (!pane) return;
   const hosts = wrap.querySelectorAll<HTMLElement>(":scope > .diff-files > .diff, :scope > .diff");
   const host = hosts[b.file];
-  const type = b.side === "additions" ? "change-addition" : "change-deletion";
-  const el = host?.shadowRoot?.querySelector<HTMLElement>(`[data-line="${b.line}"][data-line-type="${type}"]`);
+  const el = lineElements(host, b.line, b.side)[0];
   if (el) {
     const r = el.getBoundingClientRect();
     const pr = pane.getBoundingClientRect();
     pane.scrollTop += r.top - pr.top - pane.clientHeight / 2 + r.height / 2;
+    flash(host, b);
   } else if (totalRows > 0) {
     pane.scrollTop = (b.row / totalRows) * pane.scrollHeight - pane.clientHeight / 2;
   }

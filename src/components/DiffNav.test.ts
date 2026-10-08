@@ -26,6 +26,10 @@ describe("changeBlocks", () => {
       ["del", "deletions", 5, 5],
       ["add", "additions", 6, 7],
     ]);
+    expect(blocks[0].lines).toEqual([
+      { line: 2, side: "deletions" },
+      { line: 2, side: "additions" },
+    ]);
   });
 
   it("offsets rows across files", () => {
