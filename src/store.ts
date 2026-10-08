@@ -15,6 +15,9 @@ export type Screen = { kind: "dashboard" } | { kind: "repo"; repoId: string };
 
 const PAGE = 500;
 
+/** Pseudo-sha selecting the working changes of the active worktree. */
+export const WORKDIR = "WORKDIR";
+
 export interface RepoState {
   repo: RepoInfo;
   /** Worktree whose working directory is the context for status/commit. */
@@ -211,7 +214,7 @@ export const useStore = create<State>((set, get) => ({
           refs,
           refsBySha: indexRefs(refs),
           worktreesBySha: indexWorktrees(worktrees),
-          selected: now.selected.filter((s) => page.commits.some((c) => c.sha === s)),
+          selected: now.selected.filter((s) => s === WORKDIR || page.commits.some((c) => c.sha === s)),
         },
       });
     } catch (e) {

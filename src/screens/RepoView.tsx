@@ -1,10 +1,11 @@
 import { ArrowLeft, RefreshCw, Terminal } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChangesPane } from "../components/ChangesPane";
 import { CommitDetailsPane } from "../components/CommitDetails";
 import { CommitList, type CommitListHandle } from "../components/CommitList";
 import { SplitPane } from "../components/SplitPane";
 import { WorktreeBar } from "../components/WorktreeBar";
-import { useStore } from "../store";
+import { WORKDIR, useStore } from "../store";
 import { useDarkTheme } from "../util/theme";
 
 export function RepoView() {
@@ -56,7 +57,7 @@ export function RepoView() {
         storageKey="repo-main"
         className="repo-split"
         first={<CommitList ref={list} onLayout={onLayout} />}
-        second={<CommitDetailsPane />}
+        second={current.selected[0] === WORKDIR ? <ChangesPane /> : <CommitDetailsPane />}
       />
     </div>
   );
