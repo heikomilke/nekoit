@@ -162,6 +162,7 @@ export const api = {
   fileAt: (worktree: string, rev: string | null, path: string) => invoke<string>("file_at", { worktree, rev, path }),
   status: (worktree: string) => invoke<WorktreeStatus>("status", { worktree }),
   stage: (worktree: string, paths: string[]) => invoke<void>("stage", { worktree, paths }),
+  intentToAdd: (worktree: string, paths: string[]) => invoke<void>("intent_to_add", { worktree, paths }),
   unstage: (worktree: string, paths: string[]) => invoke<void>("unstage", { worktree, paths }),
   applyToIndex: (worktree: string, patch: string, reverse: boolean) =>
     invoke<void>("apply_to_index", { worktree, patch, reverse }),

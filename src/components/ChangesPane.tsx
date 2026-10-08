@@ -91,6 +91,19 @@ export function ChangesPane() {
     if (wt) await refreshStatus(wt.path);
   }, [wt, refreshStatus]);
 
+  /**
+   * The diff to build a partial patch from. An untracked file first gets an
+   * intent-to-add entry so git produces a real new-file diff; its line numbers
+   * match the /dev/null diff shown so far, so the selection stays valid.
+   */
+  const diffForPartial = useCallback(async (): Promise<DiffFile | undefined> => {
+    if (!wt || !pick || !entry) return undefined;
+    if (!entry.untracked) return parsed;
+    await api.intentToAdd(wt.path, [entry.path]);
+    const p = await api.worktreePatch(wt.path, entry.path, false, false);
+    return parseUnifiedDiff(p)[0];
+  }, [wt, pick, entry, parsed]);
+
   /** Stage or unstage the focused file, or just the selected lines when a range is active. */
   const move = useCallback(
     async (toStaged: boolean) => {
@@ -98,11 +111,12 @@ export function ChangesPane() {
       if (pick.side === (toStaged ? "staged" : "unstaged")) return;
       setBusy(true);
       try {
-        if (range && parsed && !entry.untracked) {
-          const from = rowFor(parsed, range.start, range.side ?? "additions");
-          const to = rowFor(parsed, range.end, range.endSide ?? range.side ?? "additions");
-          if (from !== null && to !== null) {
-            const partial = buildPartialPatch(parsed, keepRows(from, to), !toStaged);
+        if (range && parsed) {
+          const file = await diffForPartial();
+          const from = file ? rowFor(file, range.start, range.side ?? "additions") : null;
+          const to = file ? rowFor(file, range.end, range.endSide ?? range.side ?? "additions") : null;
+          if (file && from !== null && to !== null) {
+            const partial = buildPartialPatch(file, keepRows(from, to), !toStaged);
             if (partial) await api.applyToIndex(wt.path, partial, !toStaged);
             await refresh();
             // Re-fetch the diff for the same file so the user can keep picking lines.
@@ -121,7 +135,7 @@ export function ChangesPane() {
         setBusy(false);
       }
     },
-    [wt, pick, entry, busy, range, parsed, refresh, setError],
+    [wt, pick, entry, busy, range, parsed, refresh, setError, diffForPartial],
   );
 
   /** Append a pattern to .gitignore, open it in the editor, refresh when the editor returns. */
@@ -146,7 +160,7 @@ export function ChangesPane() {
    */
   const discard = useCallback(async () => {
     if (!wt || !pick || !entry || busy) return;
-    const lines = range && parsed && pick.side === "unstaged" && !entry.untracked;
+    const lines = range && parsed && pick.side === "unstaged";
     const key = lines ? `${entry.path}:${range.start}-${range.end}` : entry.path;
     if (armed !== key) {
       setArmed(key);
@@ -157,11 +171,12 @@ export function ChangesPane() {
     setBusy(true);
     try {
       if (lines) {
-        const from = rowFor(parsed, range.start, range.side ?? "additions");
-        const to = rowFor(parsed, range.end, range.endSide ?? range.side ?? "additions");
-        if (from !== null && to !== null) {
+        const file = await diffForPartial();
+        const from = file ? rowFor(file, range.start, range.side ?? "additions") : null;
+        const to = file ? rowFor(file, range.end, range.endSide ?? range.side ?? "additions") : null;
+        if (file && from !== null && to !== null) {
           // The unstage-flavoured patch's new side matches the file on disk; reverse-apply it.
-          const partial = buildPartialPatch(parsed, keepRows(from, to), true);
+          const partial = buildPartialPatch(file, keepRows(from, to), true);
           if (partial) await api.applyToWorktree(wt.path, partial, true);
           setNotice(`discarded selected lines in ${entry.path}`);
           await refresh();
@@ -171,8 +186,8 @@ export function ChangesPane() {
         }
         return;
       }
-      if (pick.side === "staged") await api.unstage(wt.path, [entry.path]);
-      if (entry.untracked) await api.discard(wt.path, [], [entry.path]);
+      if (pick.side === "staged" || entry.worktree === "A") await api.unstage(wt.path, [entry.path]);
+      if (entry.untracked || entry.worktree === "A") await api.discard(wt.path, [], [entry.path]);
       else await api.discard(wt.path, [entry.path], []);
       setNotice(`discarded changes to ${entry.path}`);
       await refresh();
@@ -181,7 +196,7 @@ export function ChangesPane() {
     } finally {
       setBusy(false);
     }
-  }, [wt, pick, entry, busy, armed, range, parsed, refresh, setError, setNotice]);
+  }, [wt, pick, entry, busy, armed, range, parsed, refresh, setError, setNotice, diffForPartial]);
 
   const menuItems = useCallback(
     (entry: StatusEntry, side: Side): MenuItem[] => {
@@ -322,7 +337,7 @@ export function ChangesPane() {
     armed && entry && armed.startsWith(entry.path)
       ? armed.includes(":")
         ? `discard the selected lines in ${basename(entry.path)}? press r again, Esc to cancel`
-        : entry.untracked
+        : entry.untracked || entry.worktree === "A"
           ? `delete ${basename(entry.path)}? press r again, Esc to cancel`
           : `discard changes to ${basename(entry.path)}? press r again, Esc to cancel`
       : null;
@@ -392,7 +407,7 @@ export function ChangesPane() {
               </button>
             </div>
             <ErrorBoundary resetKey={patch}>
-              {pick && <PatchView dark={dark} diffStyle={diffStyle} patch={patch} enableLineSelection={!entry?.untracked} selectedLines={range} onLineSelected={setRange} />}
+              {pick && <PatchView dark={dark} diffStyle={diffStyle} patch={patch} enableLineSelection selectedLines={range} onLineSelected={setRange} />}
             </ErrorBoundary>
           </div>
         }

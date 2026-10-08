@@ -149,6 +149,11 @@ pub async fn stage(state: State<'_, AppState>, worktree: String, paths: Vec<Stri
 }
 
 #[tauri::command]
+pub async fn intent_to_add(state: State<'_, AppState>, worktree: String, paths: Vec<String>) -> R<()> {
+    blocking(&state.git, move |git| g::intent_to_add(git, &p(&worktree), &paths)).await
+}
+
+#[tauri::command]
 pub async fn unstage(state: State<'_, AppState>, worktree: String, paths: Vec<String>) -> R<()> {
     blocking(&state.git, move |git| g::unstage(git, &p(&worktree), &paths)).await
 }

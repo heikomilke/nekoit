@@ -100,6 +100,12 @@ describe("round trip through git apply --cached", () => {
     execFileSync("git", ["apply", "--recount", "--reverse", "-"], { cwd: dir, input: drop });
     expect(readFileSync(join(dir, "f.txt"), "utf8")).toBe("one\ntwo\ntwo and a half\nthree\nfour\nfive\n");
 
+    // discard only "c" from the new file (intent-to-add diff): reverse-apply the unstage flavour
+    const nd = parseUnifiedDiff(git(dir, "diff", "--no-color", "--no-ext-diff", "--", "n.txt"))[0];
+    const dropC = buildPartialPatch(nd, (l) => l.text === "c", true)!;
+    execFileSync("git", ["apply", "--recount", "--reverse", "-"], { cwd: dir, input: dropC });
+    expect(readFileSync(join(dir, "n.txt"), "utf8")).toBe("a\nb\n");
+
     // unstage "five" again via reverse
     const staged = parseUnifiedDiff(git(dir, "diff", "--cached", "--no-color", "--no-ext-diff"));
     const sf = staged.find((x) => x.newPath === "f.txt")!;

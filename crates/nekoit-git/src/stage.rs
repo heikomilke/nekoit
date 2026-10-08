@@ -12,6 +12,17 @@ pub fn stage(git: &Git, worktree: &Path, paths: &[String]) -> Result<()> {
     git.run(worktree, &args).map(|_| ())
 }
 
+/// `git add -N -- <paths>`: record an intent-to-add so an untracked file gets a
+/// real diff against /dev/null and can be staged line by line.
+pub fn intent_to_add(git: &Git, worktree: &Path, paths: &[String]) -> Result<()> {
+    if paths.is_empty() {
+        return Ok(());
+    }
+    let mut args: Vec<&str> = vec!["add", "-N", "--"];
+    args.extend(paths.iter().map(String::as_str));
+    git.run(worktree, &args).map(|_| ())
+}
+
 /// `git restore --staged -- <paths>`; falls back to `git rm --cached` for files new to the index
 /// in a repository without commits (restore needs HEAD).
 pub fn unstage(git: &Git, worktree: &Path, paths: &[String]) -> Result<()> {
