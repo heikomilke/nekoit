@@ -58,17 +58,27 @@ pub(crate) fn parse_name_status(out: &[u8]) -> Result<Vec<FileChange>> {
 }
 
 const DIFF_FLAGS: &[&str] = &["--no-color", "--no-ext-diff", "-M", "--patch"];
+/// Context large enough to turn every hunk into the whole file.
+const WHOLE_FILE: &str = "--unified=1000000";
+
+fn diff_flags(full: bool) -> Vec<&'static str> {
+    let mut v = DIFF_FLAGS.to_vec();
+    if full {
+        v.push(WHOLE_FILE);
+    }
+    v
+}
 
 /// Unified diff of one commit (vs first parent, or vs empty tree for root commits),
-/// optionally restricted to `path`.
-pub fn commit_patch(git: &Git, repo: &Path, sha: &str, path: Option<&str>) -> Result<String> {
+/// optionally restricted to `path`. `full` shows whole files instead of hunks.
+pub fn commit_patch(git: &Git, repo: &Path, sha: &str, path: Option<&str>, full: bool) -> Result<String> {
     let parents = git.run(repo, &["rev-list", "--parents", "-n", "1", sha])?;
     let first_parent = parents.split_whitespace().nth(1).map(str::to_string);
     match first_parent {
-        Some(parent) => range_patch(git, repo, &parent, sha, path),
+        Some(parent) => range_patch(git, repo, &parent, sha, path, full),
         None => {
             let mut args = vec!["show", "--format=", "--root"];
-            args.extend_from_slice(DIFF_FLAGS);
+            args.extend(diff_flags(full));
             args.push(sha);
             if let Some(p) = path {
                 args.push("--");
@@ -80,9 +90,9 @@ pub fn commit_patch(git: &Git, repo: &Path, sha: &str, path: Option<&str>) -> Re
 }
 
 /// Unified diff between two revisions, optionally restricted to `path`.
-pub fn range_patch(git: &Git, repo: &Path, base: &str, target: &str, path: Option<&str>) -> Result<String> {
+pub fn range_patch(git: &Git, repo: &Path, base: &str, target: &str, path: Option<&str>, full: bool) -> Result<String> {
     let mut args = vec!["diff"];
-    args.extend_from_slice(DIFF_FLAGS);
+    args.extend(diff_flags(full));
     args.push(base);
     args.push(target);
     if let Some(p) = path {
@@ -94,11 +104,11 @@ pub fn range_patch(git: &Git, repo: &Path, base: &str, target: &str, path: Optio
 
 /// Unified diff of the working tree: index vs HEAD when `staged`, else worktree vs index.
 /// Untracked files are diffed against /dev/null so they render like additions.
-pub fn worktree_patch(git: &Git, worktree: &Path, path: Option<&str>, staged: bool, untracked: bool) -> Result<String> {
+pub fn worktree_patch(git: &Git, worktree: &Path, path: Option<&str>, staged: bool, untracked: bool, full: bool) -> Result<String> {
     if untracked {
         let p = path.ok_or_else(|| GitError::Other("untracked diff needs a path".into()))?;
         let mut args = vec!["diff"];
-        args.extend_from_slice(DIFF_FLAGS);
+        args.extend(diff_flags(full));
         args.extend_from_slice(&["--no-index", "--", "/dev/null", p]);
         // --no-index exits 1 when there are differences; that is the normal case.
         let out = git.run_raw(worktree, &args)?;
@@ -113,7 +123,7 @@ pub fn worktree_patch(git: &Git, worktree: &Path, path: Option<&str>, staged: bo
         return Ok(String::from_utf8_lossy(&out.stdout).into_owned());
     }
     let mut args = vec!["diff"];
-    args.extend_from_slice(DIFF_FLAGS);
+    args.extend(diff_flags(full));
     if staged {
         args.push("--cached");
     }

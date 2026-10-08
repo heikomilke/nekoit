@@ -1,5 +1,5 @@
 import type { SelectedLineRange } from "@pierre/diffs/react";
-import { Check, Columns2, Rows3 } from "lucide-react";
+import { Check, Columns2, Rows3, UnfoldVertical } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type StatusEntry } from "../api";
 import { buildPartialPatch, keepRows, parseUnifiedDiff, rowFor, type DiffFile } from "../diff/unified";
@@ -44,6 +44,8 @@ export function ChangesPane() {
   const [patch, setPatch] = useState("");
   const [range, setRange] = useState<SelectedLineRange | null>(null);
   const [diffStyle, setDiffStyle] = useState<DiffStyle>(() => (localStorage.getItem("diffStyle") as DiffStyle) || "unified");
+  /** Show whole files instead of hunks; display only, actions still use normal patches. */
+  const [fullDiff, setFullDiff] = useState(() => localStorage.getItem("diffFull") === "1");
   const [message, setMessage] = useState("");
   const [amend, setAmend] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -86,13 +88,13 @@ export function ChangesPane() {
     }
     let live = true;
     api
-      .worktreePatch(wt.path, pick.path, pick.side === "staged", entry.untracked)
+      .worktreePatch(wt.path, pick.path, pick.side === "staged", entry.untracked, fullDiff)
       .then((p) => live && setPatch(p))
       .catch((e) => live && setError(errorMessage(e)));
     return () => {
       live = false;
     };
-  }, [wt, pick, entry, setError]);
+  }, [wt, pick, entry, fullDiff, setError]);
 
   const parsed = useMemo(() => parseUnifiedDiff(patch)[0], [patch]);
 
@@ -122,14 +124,14 @@ export function ChangesPane() {
       try {
         if (range && parsed) {
           const file = await diffForPartial();
-          const from = file ? rowFor(file, range.start, range.side ?? "additions") : null;
-          const to = file ? rowFor(file, range.end, range.endSide ?? range.side ?? "additions") : null;
+          const from = file ? rowFor(file, range.start, range.side ?? "additions", "down") : null;
+          const to = file ? rowFor(file, range.end, range.endSide ?? range.side ?? "additions", "up") : null;
           if (file && from !== null && to !== null) {
             const partial = buildPartialPatch(file, keepRows(from, to), !toStaged);
             if (partial) await api.applyToIndex(wt.path, partial, !toStaged);
             await refresh();
             // Re-fetch the diff for the same file so the user can keep picking lines.
-            const p = await api.worktreePatch(wt.path, pick.path, pick.side === "staged", false);
+            const p = await api.worktreePatch(wt.path, pick.path, pick.side === "staged", false, fullDiff);
             setPatch(p);
             setRange(null);
             return;
@@ -181,8 +183,8 @@ export function ChangesPane() {
     try {
       if (lines) {
         const file = await diffForPartial();
-        const from = file ? rowFor(file, range.start, range.side ?? "additions") : null;
-        const to = file ? rowFor(file, range.end, range.endSide ?? range.side ?? "additions") : null;
+        const from = file ? rowFor(file, range.start, range.side ?? "additions", "down") : null;
+        const to = file ? rowFor(file, range.end, range.endSide ?? range.side ?? "additions", "up") : null;
         if (file && from !== null && to !== null) {
           // The unstage-flavoured patch's new side matches the file on disk; reverse-apply it.
           const partial = buildPartialPatch(file, keepRows(from, to), true);
@@ -337,6 +339,12 @@ export function ChangesPane() {
     setDiffStyle(s);
     localStorage.setItem("diffStyle", s);
   };
+  const toggleFull = () => {
+    setFullDiff((v) => {
+      localStorage.setItem("diffFull", v ? "0" : "1");
+      return !v;
+    });
+  };
 
   if (!wt) return <div className="details-empty muted">No worktree selected.</div>;
 
@@ -414,6 +422,9 @@ export function ChangesPane() {
               <button className={`btn btn-icon ${diffStyle === "split" ? "is-active" : ""}`} onClick={() => changeStyle("split")} title="Side by side">
                 <Columns2 size={14} />
               </button>
+              <button className={`btn btn-icon ${fullDiff ? "is-active" : ""}`} onClick={toggleFull} title={fullDiff ? "Showing the whole file; click for changed hunks only" : "Showing changed hunks; click for the whole file"}>
+                <UnfoldVertical size={14} />
+              </button>
             </div>
             <ErrorBoundary resetKey={patch}>
               {pick && <PatchView dark={dark} diffStyle={diffStyle} patch={patch} enableLineSelection selectedLines={range} onLineSelected={setRange} />}
@@ -484,8 +495,8 @@ function ChangeList({
 
 /** Number of + / - lines inside a renderer selection. */
 function countSelectedChanges(file: DiffFile, range: Range): number {
-  const from = rowFor(file, range.start, range.side ?? "additions");
-  const to = rowFor(file, range.end, range.endSide ?? range.side ?? "additions");
+  const from = rowFor(file, range.start, range.side ?? "additions", "down");
+  const to = rowFor(file, range.end, range.endSide ?? range.side ?? "additions", "up");
   if (from === null || to === null) return 0;
   const keep = keepRows(from, to);
   let n = 0;

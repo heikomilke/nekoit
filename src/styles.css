@@ -267,9 +267,9 @@ button { font: inherit; color: inherit; }
 .check { display: inline-flex; align-items: center; gap: 4px; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-primary:hover { filter: brightness(1.1); background: var(--accent); }
-.changes-diff { display: flex; flex-direction: column; }
+.changes-diff { display: flex; flex-direction: column; overflow: hidden; }
 .changes-diff-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 4px 10px; border-bottom: 1px solid var(--border); background: var(--bg-panel); min-height: 32px; }
-.changes-diff > .diff { flex: 1; min-height: 0; overflow: auto; }
+.changes-diff > .diff-files, .changes-diff > .diff, .changes-diff > .diff-empty { flex: 1; min-height: 0; overflow: auto; }
 
 /* virtual working-changes row */
 .commit-row.is-workdir .subject-text { font-style: italic; color: var(--fg-muted); }

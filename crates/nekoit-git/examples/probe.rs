@@ -41,7 +41,7 @@ fn main() -> Result<()> {
             println!("  {} {} {:?}", c.status, c.path, c.old_path);
         }
         if let Some(c) = ch.first() {
-            let p = commit_patch(&git, wt, &head.sha, Some(&c.path))?;
+            let p = commit_patch(&git, wt, &head.sha, Some(&c.path), false)?;
             println!("patch head:\n{}", p.lines().take(8).collect::<Vec<_>>().join("\n"));
         }
         let st = status(&git, wt, false)?;

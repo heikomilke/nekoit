@@ -115,18 +115,18 @@ pub async fn changes_between(state: State<'_, AppState>, repo: String, base: Str
 }
 
 #[tauri::command]
-pub async fn commit_patch(state: State<'_, AppState>, repo: String, sha: String, path: Option<String>) -> R<String> {
-    blocking(&state.git, move |git| g::commit_patch(git, &p(&repo), &sha, path.as_deref())).await
+pub async fn commit_patch(state: State<'_, AppState>, repo: String, sha: String, path: Option<String>, full: bool) -> R<String> {
+    blocking(&state.git, move |git| g::commit_patch(git, &p(&repo), &sha, path.as_deref(), full)).await
 }
 
 #[tauri::command]
-pub async fn range_patch(state: State<'_, AppState>, repo: String, base: String, target: String, path: Option<String>) -> R<String> {
-    blocking(&state.git, move |git| g::range_patch(git, &p(&repo), &base, &target, path.as_deref())).await
+pub async fn range_patch(state: State<'_, AppState>, repo: String, base: String, target: String, path: Option<String>, full: bool) -> R<String> {
+    blocking(&state.git, move |git| g::range_patch(git, &p(&repo), &base, &target, path.as_deref(), full)).await
 }
 
 #[tauri::command]
-pub async fn worktree_patch(state: State<'_, AppState>, worktree: String, path: Option<String>, staged: bool, untracked: bool) -> R<String> {
-    blocking(&state.git, move |git| g::worktree_patch(git, &p(&worktree), path.as_deref(), staged, untracked)).await
+pub async fn worktree_patch(state: State<'_, AppState>, worktree: String, path: Option<String>, staged: bool, untracked: bool, full: bool) -> R<String> {
+    blocking(&state.git, move |git| g::worktree_patch(git, &p(&worktree), path.as_deref(), staged, untracked, full)).await
 }
 
 /// File contents at a revision (or the working tree when `rev` is null), lossily decoded.

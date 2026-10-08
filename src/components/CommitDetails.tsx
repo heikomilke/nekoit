@@ -1,5 +1,5 @@
 import type { SelectedLineRange } from "@pierre/diffs/react";
-import { Cherry, ChevronDown, ChevronRight, Columns2, Rows3, Undo2 } from "lucide-react";
+import { Cherry, ChevronDown, ChevronRight, Columns2, Rows3, Undo2, UnfoldVertical } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildPartialPatch, keepRows, parseUnifiedDiff, rowFor } from "../diff/unified";
 import { api, type CommitDetails as Details, type FileChange } from "../api";
@@ -24,6 +24,8 @@ export function CommitDetailsPane() {
   const setError = useStore((s) => s.setError);
   const dark = useDarkTheme();
   const [diffStyle, setDiffStyle] = useState<DiffStyle>(() => (localStorage.getItem("diffStyle") as DiffStyle) || "unified");
+  /** Show whole files instead of hunks; display only, revert/cherry-pick still use normal patches. */
+  const [fullDiff, setFullDiff] = useState(() => localStorage.getItem("diffFull") === "1");
   const [details, setDetails] = useState<Details | null>(null);
   const [files, setFiles] = useState<FileChange[]>([]);
   const filesRef = useRef<FileChange[]>([]);
@@ -70,6 +72,12 @@ export function CommitDetailsPane() {
   const changeStyle = (s: DiffStyle) => {
     setDiffStyle(s);
     localStorage.setItem("diffStyle", s);
+  };
+  const toggleFull = () => {
+    setFullDiff((v) => {
+      localStorage.setItem("diffFull", v ? "0" : "1");
+      return !v;
+    });
   };
 
   // Branches that contain the selected commit (exact, via git), loaded lazily.
@@ -143,7 +151,7 @@ export function CommitDetailsPane() {
         }
         setPair(null);
         const path = selectedFiles[0];
-        const p = range ? await api.rangePatch(repoDir, range.base, range.target, path) : await api.commitPatch(repoDir, target, path);
+        const p = range ? await api.rangePatch(repoDir, range.base, range.target, path, fullDiff) : await api.commitPatch(repoDir, target, path, fullDiff);
         if (live) {
           setPatch(p);
           setLineRange(null);
@@ -155,7 +163,7 @@ export function CommitDetailsPane() {
     return () => {
       live = false;
     };
-  }, [repoDir, target, range, selectionKey, setError]);
+  }, [repoDir, target, range, selectionKey, fullDiff, setError]);
 
   /**
    * Apply the shown change into the active worktree as a staged pending change:
@@ -187,8 +195,8 @@ export function CommitDetailsPane() {
       if (path && files.length !== 1) throw new Error(`expected one file in the patch for ${path}, got ${files.length}`);
       if (lines) {
         const single = files[0];
-        const from = rowFor(single, lineRange.start, lineRange.side ?? "additions");
-        const to = rowFor(single, lineRange.end, lineRange.endSide ?? lineRange.side ?? "additions");
+        const from = rowFor(single, lineRange.start, lineRange.side ?? "additions", "down");
+        const to = rowFor(single, lineRange.end, lineRange.endSide ?? lineRange.side ?? "additions", "up");
         if (from === null || to === null) return;
         // Reverse needs a patch whose new side matches the target file; forward needs the old side.
         const partial = buildPartialPatch(single, keepRows(from, to), reverse);
@@ -341,6 +349,9 @@ export function CommitDetailsPane() {
         </button>
         <button className={`btn btn-icon ${diffStyle === "split" ? "is-active" : ""}`} onClick={() => changeStyle("split")} title="Side by side">
           <Columns2 size={14} />
+        </button>
+        <button className={`btn btn-icon ${fullDiff ? "is-active" : ""}`} onClick={toggleFull} title={fullDiff ? "Showing the whole file; click for changed hunks only" : "Showing changed hunks; click for the whole file"}>
+          <UnfoldVertical size={14} />
         </button>
       </div>
     </header>

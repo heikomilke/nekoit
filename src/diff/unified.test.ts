@@ -37,6 +37,15 @@ describe("parseUnifiedDiff", () => {
     expect(rowFor(f, 2, "deletions")).toBe(1);
     expect(rowFor(f, 3, "additions")).toBe(3);
   });
+
+  it("snaps line numbers outside the patch to the nearest row inside it", () => {
+    const [f] = parseUnifiedDiff(SAMPLE);
+    // A whole-file view lets the user start a range far above the first hunk and end far below it.
+    expect(rowFor(f, 0, "additions")).toBeNull();
+    expect(rowFor(f, 0, "additions", "down")).toBe(0);
+    expect(rowFor(f, 99, "additions", "up")).toBe(5);
+    expect(rowFor(f, 99, "additions", "down")).toBeNull();
+  });
 });
 
 describe("buildPartialPatch", () => {

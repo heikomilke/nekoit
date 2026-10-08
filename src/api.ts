@@ -153,12 +153,13 @@ export const api = {
   commitChanges: (repo: string, sha: string) => invoke<FileChange[]>("commit_changes", { repo, sha }),
   changesBetween: (repo: string, base: string, target: string) =>
     invoke<FileChange[]>("changes_between", { repo, base, target }),
-  commitPatch: (repo: string, sha: string, path?: string) =>
-    invoke<string>("commit_patch", { repo, sha, path: path ?? null }),
-  rangePatch: (repo: string, base: string, target: string, path?: string) =>
-    invoke<string>("range_patch", { repo, base, target, path: path ?? null }),
-  worktreePatch: (worktree: string, path: string | null, staged: boolean, untracked: boolean) =>
-    invoke<string>("worktree_patch", { worktree, path, staged, untracked }),
+  /** `full` renders whole files instead of hunks; actions keep the default so patches apply robustly. */
+  commitPatch: (repo: string, sha: string, path?: string, full = false) =>
+    invoke<string>("commit_patch", { repo, sha, path: path ?? null, full }),
+  rangePatch: (repo: string, base: string, target: string, path?: string, full = false) =>
+    invoke<string>("range_patch", { repo, base, target, path: path ?? null, full }),
+  worktreePatch: (worktree: string, path: string | null, staged: boolean, untracked: boolean, full = false) =>
+    invoke<string>("worktree_patch", { worktree, path, staged, untracked, full }),
   fileAt: (worktree: string, rev: string | null, path: string) => invoke<string>("file_at", { worktree, rev, path }),
   status: (worktree: string) => invoke<WorktreeStatus>("status", { worktree }),
   stage: (worktree: string, paths: string[]) => invoke<void>("stage", { worktree, paths }),

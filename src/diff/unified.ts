@@ -173,13 +173,22 @@ export function keepRows(from: number, to: number): (line: DiffLine) => boolean 
   return (l) => l.row >= lo && l.row <= hi;
 }
 
-/** Map a (lineNumber, side) pair as reported by the renderer to a unified row index. */
-export function rowFor(file: DiffFile, lineNumber: number, side: "deletions" | "additions"): number | null {
+/**
+ * Map a (lineNumber, side) pair as reported by the renderer to a unified row index.
+ * The displayed diff may carry more context than the patch we apply, so a line
+ * missing here snaps to the nearest row inside the patch: `snap` "down" takes
+ * the first row after it (for a range start), "up" the last row before it.
+ */
+export function rowFor(file: DiffFile, lineNumber: number, side: "deletions" | "additions", snap?: "down" | "up"): number | null {
+  let best: { no: number; row: number } | null = null;
   for (const h of file.hunks) {
     for (const l of h.lines) {
-      if (side === "additions" && l.newNo === lineNumber && l.kind !== "del") return l.row;
-      if (side === "deletions" && l.oldNo === lineNumber && l.kind !== "add") return l.row;
+      const no = side === "additions" ? (l.kind === "del" ? null : l.newNo) : l.kind === "add" ? null : l.oldNo;
+      if (no === null) continue;
+      if (no === lineNumber) return l.row;
+      if (snap === "down" && no > lineNumber && (best === null || no < best.no)) best = { no, row: l.row };
+      if (snap === "up" && no < lineNumber && (best === null || no > best.no)) best = { no, row: l.row };
     }
   }
-  return null;
+  return best?.row ?? null;
 }
