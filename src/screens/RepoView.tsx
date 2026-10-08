@@ -35,21 +35,23 @@ export function RepoView() {
 
   return (
     <div className="repo-view">
-      <header className="repo-head">
-        <button className="btn btn-icon" onClick={closeRepo} title="Back to repositories (Esc)">
-          <ArrowLeft size={16} />
-        </button>
-        <span className="repo-title">{repo.name}</span>
-        <span className="repo-path muted">{repo.path}</span>
+      <div className="repo-head-wrap">
+        <header className="repo-head">
+          <button className="btn btn-icon" onClick={closeRepo} title="Back to repositories (Esc)">
+            <ArrowLeft size={16} />
+          </button>
+          <span className="repo-title">{repo.name}</span>
+          <span className="repo-path muted">{repo.path}</span>
+          <span className="spacer" />
+          <button className="btn btn-icon" onClick={() => void reloadLog()} title="Refresh (F5)">
+            <RefreshCw size={14} className={current.loadingLog ? "spin" : ""} />
+          </button>
+          <button className="btn btn-icon" onClick={toggleLog} title="Command log (ctrl+`)">
+            <Terminal size={14} />
+          </button>
+        </header>
         <WorktreeBar colorBySha={colorBySha} onJump={(sha) => list.current?.scrollTo(sha)} />
-        <span className="spacer" />
-        <button className="btn btn-icon" onClick={() => void reloadLog()} title="Refresh (F5)">
-          <RefreshCw size={14} className={current.loadingLog ? "spin" : ""} />
-        </button>
-        <button className="btn btn-icon" onClick={toggleLog} title="Command log (ctrl+`)">
-          <Terminal size={14} />
-        </button>
-      </header>
+      </div>
       <SplitPane
         direction="vertical"
         initial={Math.round(window.innerHeight * 0.45)}

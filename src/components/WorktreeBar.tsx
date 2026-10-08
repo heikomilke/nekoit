@@ -38,7 +38,7 @@ export function WorktreeBar({ colorBySha, onJump }: Props) {
             onDoubleClick={() => onJump(w.head)}
             title={`${w.path}\n${w.branch ?? "detached"} @ ${w.head.slice(0, 8)}`}
           >
-            <FolderGit2 size={14} className="wt-icon" />
+            <FolderGit2 size={13} className="wt-icon" />
             <span className="wt-name">{w.name}</span>
             {w.branch && w.branch !== w.name && <span className="wt-branch">{w.branch}</span>}
             {w.detached && <span className="wt-branch muted">detached</span>}

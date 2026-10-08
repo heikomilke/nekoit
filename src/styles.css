@@ -74,6 +74,9 @@ button { font: inherit; color: inherit; }
 .pill-danger { color: var(--danger); border-color: var(--danger); }
 .pill-root { padding-right: 3px; }
 .pill-x { border: 0; background: transparent; cursor: pointer; display: inline-flex; padding: 2px; border-radius: 50%; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pill-x:focus-visible, .wt-mini:focus-visible { outline-offset: 0; }
 .pill-x:hover { background: var(--bg-hover); }
 
 /* ---------- app shell ---------- */
@@ -94,7 +97,7 @@ button { font: inherit; color: inherit; }
 .scan-roots { display: flex; gap: 6px; flex-wrap: wrap; }
 .dash-actions { margin-left: auto; display: flex; gap: 6px; }
 .empty-state { color: var(--fg-muted); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 60px 0; }
-.repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; }
 .repo-card {
   background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px;
   padding: 12px 14px; cursor: pointer; box-shadow: var(--shadow);
@@ -106,32 +109,35 @@ button { font: inherit; color: inherit; }
 .repo-path { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .repo-wts { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
 .wt-mini {
-  display: inline-flex; align-items: center; gap: 5px; font-size: 11px;
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px; max-width: 100%;
   padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-elev); cursor: pointer;
+  white-space: nowrap;
 }
+.wt-mini > span { overflow: hidden; text-overflow: ellipsis; }
 .wt-mini:hover { border-color: var(--accent); }
 .wt-mini-age { margin-left: 2px; }
 
 /* ---------- repo view ---------- */
 .repo-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .repo-head {
-  display: flex; align-items: center; gap: 10px; padding: 6px 10px;
-  background: var(--bg-panel); border-bottom: 1px solid var(--border); min-height: 40px;
+  display: flex; align-items: center; gap: 10px; padding: 6px 10px 2px;
+  background: var(--bg-panel); min-height: 40px;
 }
+.repo-head-wrap { background: var(--bg-panel); border-bottom: 1px solid var(--border); }
 .repo-title { font-weight: 600; font-size: 14px; }
 .repo-split { flex: 1; min-height: 0; }
 
 /* worktree bar */
-.wt-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; }
+.wt-bar { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding: 4px 10px 6px; }
 .wt-pill {
   --wt-color: var(--fg-muted);
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; flex: none;
   border-radius: 999px; border: 1px solid var(--border); background: var(--bg-elev); cursor: pointer; font-size: 12px;
-  border-left: 3px solid var(--wt-color);
 }
+.wt-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--wt-color); flex: none; }
 .wt-pill:hover { background: var(--bg-hover); }
-.wt-pill.is-active { background: var(--bg-selected); border-color: var(--accent); border-left-color: var(--wt-color); }
-.wt-icon { color: var(--wt-color); }
+.wt-pill.is-active { background: var(--bg-selected); border-color: var(--accent); }
+.wt-icon { color: var(--fg-muted); }
 .wt-name { font-weight: 600; }
 .wt-branch { color: var(--fg-muted); font-size: 11px; }
 .wt-ab { font-size: 11px; color: var(--fg-muted); }

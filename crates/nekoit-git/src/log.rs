@@ -154,7 +154,7 @@ pub fn refs(git: &Git, repo: &Path) -> Result<Vec<RefInfo>> {
         } else {
             RefKind::Other
         };
-        if kind == RefKind::Other {
+        if kind == RefKind::Other || (kind == RefKind::Remote && name.ends_with("/HEAD")) {
             continue;
         }
         let sha = if f[4].is_empty() { f[0] } else { f[4] }.to_string();
