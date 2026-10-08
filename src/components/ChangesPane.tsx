@@ -26,6 +26,7 @@ interface Pick {
  *   s / u     stage / unstage the focused file, or only the selected diff lines
  *   a         stage everything
  *   i         add the focused file to .gitignore (right-click for folder / extension)
+ *   r r       discard the focused file's changes (second press confirms)
  *   tab       switch between the two lists
  *   ctrl+enter commit
  */
@@ -46,6 +47,8 @@ export function ChangesPane() {
   const [amend, setAmend] = useState(false);
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; entry: StatusEntry; side: Side } | null>(null);
+  /** Path armed for discard; a second `r` within a few seconds confirms. */
+  const [armed, setArmed] = useState<string | null>(null);
   const setNotice = useStore((s) => s.setNotice);
   const root = useRef<HTMLDivElement>(null);
   const messageBox = useRef<HTMLTextAreaElement>(null);
@@ -135,6 +138,29 @@ export function ChangesPane() {
     [wt, refresh, setError, setNotice],
   );
 
+  /** Discard the focused file's working changes (and index changes when picked from Staged). */
+  const discard = useCallback(async () => {
+    if (!wt || !pick || !entry || busy) return;
+    if (armed !== entry.path) {
+      setArmed(entry.path);
+      setTimeout(() => setArmed((a) => (a === entry.path ? null : a)), 3000);
+      return;
+    }
+    setArmed(null);
+    setBusy(true);
+    try {
+      if (pick.side === "staged") await api.unstage(wt.path, [entry.path]);
+      if (entry.untracked) await api.discard(wt.path, [], [entry.path]);
+      else await api.discard(wt.path, [entry.path], []);
+      setNotice(`discarded changes to ${entry.path}`);
+      await refresh();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [wt, pick, entry, busy, armed, refresh, setError, setNotice]);
+
   const menuItems = useCallback(
     (entry: StatusEntry, side: Side): MenuItem[] => {
       const items: MenuItem[] = [];
@@ -143,9 +169,10 @@ export function ChangesPane() {
       ignoreSuggestions(entry.path).forEach(([pattern, label], i) => {
         items.push({ label: `Ignore ${label}`, hint: pattern, separator: i === 0, onClick: () => void ignore(pattern) });
       });
+      items.push({ label: entry.untracked ? "Delete file" : "Discard changes", hint: "r r", danger: true, separator: true, onClick: () => void discard() });
       return items;
     },
-    [move, ignore],
+    [move, ignore, discard],
   );
 
   const stageAll = useCallback(async () => {
@@ -243,11 +270,21 @@ export function ChangesPane() {
             void ignore(ignoreSuggestions(entry.path)[0][0]);
           }
           break;
+        case "r":
+          e.preventDefault();
+          void discard();
+          break;
+        case "Escape":
+          if (armed) {
+            e.stopPropagation();
+            setArmed(null);
+          }
+          break;
       }
     };
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, [pick, staged, unstaged, move, stageAll, doCommit, entry, ignore]);
+  }, [pick, staged, unstaged, move, stageAll, doCommit, entry, ignore, discard, armed]);
 
   const changeStyle = (s: DiffStyle) => {
     setDiffStyle(s);
@@ -257,6 +294,7 @@ export function ChangesPane() {
   if (!wt) return <div className="details-empty muted">No worktree selected.</div>;
 
   const lineHint = range ? (range.start === range.end ? "1 line selected" : `lines ${Math.min(range.start, range.end)}–${Math.max(range.start, range.end)} selected`) : null;
+  const armHint = armed && entry && armed === entry.path ? (entry.untracked ? `delete ${basename(entry.path)}? press r again, Esc to cancel` : `discard changes to ${basename(entry.path)}? press r again, Esc to cancel`) : null;
 
   return (
     <div className="changes" ref={root} tabIndex={0}>
@@ -303,7 +341,7 @@ export function ChangesPane() {
           <div className="diff-pane changes-diff">
             <div className="changes-diff-head">
               <span className="mono">{pick?.path ?? ""}</span>
-              <span className="muted">{lineHint ?? (pick ? "drag over line numbers to pick lines, then s / u" : "")}</span>
+              {armHint ? <span className="arm-hint">{armHint}</span> : <span className="muted">{lineHint ?? (pick ? "drag over line numbers to pick lines, then s / u · r r discards" : "")}</span>}
               <span className="spacer" />
               <button className={`btn btn-icon ${diffStyle === "unified" ? "is-active" : ""}`} onClick={() => changeStyle("unified")} title="Unified">
                 <Rows3 size={14} />

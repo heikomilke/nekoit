@@ -67,7 +67,7 @@ opened repo/worktree, theme).
 
 In the changes view, right-click a file for stage/unstage and "Ignore this
 file / folder / *.ext": the pattern is appended to the worktree's
-`.gitignore`, which then opens in your editor (`editor` in the config, e.g.
+`.gitignore`, which then opens in your editor. `r` twice discards the focused file's changes (deletes an untracked file) (`editor` in the config, e.g.
 `"code --wait {file}"`; empty means `xdg-open`). `i` ignores the focused file.
 
 Fetch, pull (merge, rebase or fast-forward only) and push (plain, set
