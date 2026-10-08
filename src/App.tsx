@@ -8,6 +8,8 @@ import { useStore } from "./store";
 export default function App() {
   const screen = useStore((s) => s.screen);
   const error = useStore((s) => s.error);
+  const notice = useStore((s) => s.notice);
+  const setNotice = useStore((s) => s.setNotice);
   const logOpen = useStore((s) => s.logOpen);
   const init = useStore((s) => s.init);
   const pushCommand = useStore((s) => s.pushCommand);
@@ -53,6 +55,14 @@ export default function App() {
     <div className="app">
       <div className="app-main">{screen.kind === "dashboard" ? <Dashboard /> : <RepoView />}</div>
       {logOpen && <CommandLog />}
+      {notice && !error && (
+        <div className="toast" role="status">
+          <span>{notice}</span>
+          <button className="btn btn-ghost" onClick={() => setNotice(null)} aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+      )}
       {error && (
         <div className="toast toast-error" role="alert">
           <span>{error}</span>

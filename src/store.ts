@@ -43,6 +43,8 @@ interface State {
   commandLog: CommandRecord[];
   logOpen: boolean;
   error: string | null;
+  /** Transient success message, cleared automatically. */
+  notice: string | null;
 
   init(): Promise<void>;
   saveConfig(patch: Partial<AppConfig>): Promise<void>;
@@ -62,6 +64,7 @@ interface State {
   refreshStatuses(): void;
   toggleLog(): void;
   setError(msg: string | null): void;
+  setNotice(msg: string | null): void;
 }
 
 function indexRefs(refs: RefInfo[]): Map<string, RefInfo[]> {
@@ -102,6 +105,7 @@ export const useStore = create<State>((set, get) => ({
   commandLog: [],
   logOpen: false,
   error: null,
+  notice: null,
 
   async init() {
     try {
@@ -281,5 +285,10 @@ export const useStore = create<State>((set, get) => ({
 
   setError(msg) {
     set({ error: msg });
+  },
+
+  setNotice(msg) {
+    set({ notice: msg });
+    if (msg) setTimeout(() => get().notice === msg && set({ notice: null }), 6000);
   },
 }));

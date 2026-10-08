@@ -192,7 +192,6 @@ button { font: inherit; color: inherit; }
 .commit-author { overflow: hidden; text-overflow: ellipsis; color: var(--fg-muted); }
 .commit-time { color: var(--fg-muted); text-align: right; font-variant-numeric: tabular-nums; }
 .commit-sha { font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); text-align: right; }
-.list-loading { position: sticky; bottom: 0; padding: 4px 10px; background: var(--bg-panel); }
 
 /* chips */
 .chips { display: inline-flex; gap: 4px; flex: none; }
@@ -275,3 +274,17 @@ button { font: inherit; color: inherit; }
 .commit-row.is-workdir .subject-text.has-changes { color: var(--fg); }
 .render-error { padding: 14px; color: var(--danger); }
 .render-error pre { white-space: pre-wrap; font: 12px/1.4 var(--font-mono); color: var(--fg-muted); user-select: text; }
+
+/* ---------- menus / remote actions ---------- */
+.remote-actions { display: flex; gap: 6px; margin-right: 6px; }
+.menu { position: relative; }
+.menu-popup {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; min-width: 230px;
+  display: flex; flex-direction: column; padding: 4px;
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow);
+}
+.menu-item { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; text-align: left; padding: 6px 10px; border: 0; background: transparent; border-radius: var(--radius); cursor: pointer; }
+.menu-item:hover:not(:disabled) { background: var(--bg-hover); }
+.menu-item:disabled { opacity: 0.45; cursor: default; }
+.menu-item.is-danger { color: var(--danger); }
+.menu-hint { font-size: 11px; color: var(--fg-muted); font-family: var(--font-mono); }

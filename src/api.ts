@@ -108,6 +108,19 @@ export interface CommandRecord {
   stderr: string;
 }
 
+export type PullMode = "merge" | "rebase" | "ff-only";
+
+export interface RemoteInfo {
+  name: string;
+  fetchUrl: string;
+  pushUrl: string;
+}
+
+export interface RemoteResult {
+  stdout: string;
+  stderr: string;
+}
+
 export type Theme = "system" | "light" | "dark";
 
 export interface AppConfig {
@@ -154,6 +167,18 @@ export const api = {
   commit: (worktree: string, message: string, amend: boolean, author?: string) =>
     invoke<string>("commit", { worktree, message, amend, author: author ?? null }),
   resolve: (repo: string, rev: string) => invoke<string>("resolve", { repo, rev }),
+  remotes: (repo: string) => invoke<RemoteInfo[]>("remotes", { repo }),
+  fetch: (repo: string, remote: string | null, prune = true) => invoke<RemoteResult>("fetch", { repo, remote, prune }),
+  pull: (worktree: string, mode: PullMode, remote: string | null = null, branch: string | null = null) =>
+    invoke<RemoteResult>("pull", { worktree, mode, remote, branch }),
+  push: (worktree: string, opts: { remote?: string | null; branch?: string | null; setUpstream?: boolean; forceWithLease?: boolean } = {}) =>
+    invoke<RemoteResult>("push", {
+      worktree,
+      remote: opts.remote ?? null,
+      branch: opts.branch ?? null,
+      setUpstream: opts.setUpstream ?? false,
+      forceWithLease: opts.forceWithLease ?? false,
+    }),
 };
 
 export function onGitCommand(handler: (record: CommandRecord) => void): Promise<UnlistenFn> {

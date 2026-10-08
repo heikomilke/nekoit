@@ -168,7 +168,6 @@ export const CommitList = forwardRef<CommitListHandle, Props>(function CommitLis
           );
         })}
       </div>
-      {current.loadingLog && <div className="list-loading muted">loading…</div>}
     </div>
   );
 });

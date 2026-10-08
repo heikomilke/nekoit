@@ -172,3 +172,30 @@ pub async fn commit(state: State<'_, AppState>, worktree: String, message: Strin
 pub async fn resolve(state: State<'_, AppState>, repo: String, rev: String) -> R<String> {
     blocking(&state.git, move |git| g::resolve(git, &p(&repo), &rev)).await
 }
+
+#[tauri::command]
+pub async fn remotes(state: State<'_, AppState>, repo: String) -> R<Vec<g::RemoteInfo>> {
+    blocking(&state.git, move |git| g::remotes(git, &p(&repo))).await
+}
+
+#[tauri::command]
+pub async fn fetch(state: State<'_, AppState>, repo: String, remote: Option<String>, prune: bool) -> R<g::RemoteResult> {
+    blocking(&state.git, move |git| g::fetch(git, &p(&repo), remote.as_deref(), prune)).await
+}
+
+#[tauri::command]
+pub async fn pull(state: State<'_, AppState>, worktree: String, mode: g::PullMode, remote: Option<String>, branch: Option<String>) -> R<g::RemoteResult> {
+    blocking(&state.git, move |git| g::pull(git, &p(&worktree), mode, remote.as_deref(), branch.as_deref())).await
+}
+
+#[tauri::command]
+pub async fn push(
+    state: State<'_, AppState>,
+    worktree: String,
+    remote: Option<String>,
+    branch: Option<String>,
+    set_upstream: bool,
+    force_with_lease: bool,
+) -> R<g::RemoteResult> {
+    blocking(&state.git, move |git| g::push(git, &p(&worktree), remote.as_deref(), branch.as_deref(), set_upstream, force_with_lease)).await
+}

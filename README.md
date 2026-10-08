@@ -7,6 +7,8 @@ or files, a keyboard-driven commit dialog with line-level staging, and a log of
 every git command the app runs. Worktrees are first-class: a repository is one
 git dir plus any number of worktrees, and the UI shows them as such.
 
+Built by Heiko Milke with AI assistance (Claude Code). MIT licensed.
+
 ## Stack
 
 - Tauri 2 shell (Rust) with a React 19 + TypeScript front end (Vite).
@@ -40,7 +42,7 @@ npm run tauri dev        # hot-reloading app
 npm run typecheck        # tsc
 npm test                 # vitest (graph layout etc.)
 cargo test -p nekoit-git # Rust unit tests
-cargo run -p nekoit-git --example probe -- ~/kbs ~/kbs/eureka/staging   # exercise the git layer
+cargo run -p nekoit-git --example probe -- ~/projects ~/projects/app/main   # exercise the git layer
 ```
 
 Config lives in `~/.config/nekoit/config.json` (scan roots, added repos, last
@@ -56,3 +58,11 @@ opened repo/worktree, theme).
 | `F5` | reload log |
 | `Esc` | back to the dashboard |
 | ``ctrl+` `` | toggle the git command log |
+
+Fetch, pull (merge, rebase or fast-forward only) and push (plain, set
+upstream, force-with-lease) live in the repo header and act on the active
+worktree.
+
+## License
+
+MIT, see `LICENSE`.

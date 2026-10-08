@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChangesPane } from "../components/ChangesPane";
 import { CommitDetailsPane } from "../components/CommitDetails";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { RemoteActions } from "../components/RemoteActions";
 import { CommitList, type CommitListHandle } from "../components/CommitList";
 import { SplitPane } from "../components/SplitPane";
 import { WorktreeBar } from "../components/WorktreeBar";
@@ -40,6 +41,7 @@ export function RepoView() {
           <span className="repo-title">{repo.name}</span>
           <span className="repo-path muted">{repo.path}</span>
           <span className="spacer" />
+          <RemoteActions />
           <button className="btn btn-icon" onClick={() => void reloadLog()} title="Refresh (F5)">
             <RefreshCw size={14} className={current.loadingLog ? "spin" : ""} />
           </button>
