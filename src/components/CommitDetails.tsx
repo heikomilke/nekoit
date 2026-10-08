@@ -1,4 +1,4 @@
-import { Columns2, Rows3 } from "lucide-react";
+import { ChevronDown, ChevronRight, Columns2, Rows3 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type CommitDetails as Details, type FileChange } from "../api";
 import { useStore } from "../store";
@@ -26,6 +26,7 @@ export function CommitDetailsPane() {
   const [patch, setPatch] = useState<string>("");
   const [pair, setPair] = useState<{ a: string; b: string; aText: string; bText: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showBody, setShowBody] = useState(false);
 
   const repoDir = current?.repo.commonDir ?? "";
   const selected = current?.selected ?? [];
@@ -91,7 +92,9 @@ export function CommitDetailsPane() {
       try {
         if (selectedFiles.length === 2) {
           const [a, b] = selectedFiles;
-          const [aText, bText] = await Promise.all([api.fileAt(repoDir, target, a), api.fileAt(repoDir, target, b)]);
+          // A deleted file only exists on the old side of the range.
+          const revFor = (path: string) => (files.find((f) => f.path === path)?.status === "D" ? (range ? range.base : `${target}^`) : target);
+          const [aText, bText] = await Promise.all([api.fileAt(repoDir, revFor(a), a), api.fileAt(repoDir, revFor(b), b)]);
           if (live) setPair({ a, b, aText, bText });
           return;
         }
@@ -106,7 +109,7 @@ export function CommitDetailsPane() {
     return () => {
       live = false;
     };
-  }, [repoDir, target, range, selectedFiles, setError]);
+  }, [repoDir, target, range, selectedFiles, files, setError]);
 
   const onSelectFile = useCallback((path: string, extend: boolean) => {
     setSelectedFiles((cur) => {
@@ -124,6 +127,11 @@ export function CommitDetailsPane() {
   const header = (
     <header className="details-head">
       <div className="details-subject">
+        {!range && details.body && (
+          <button className="btn btn-ghost btn-icon body-toggle" onClick={() => setShowBody((v) => !v)} title={showBody ? "Hide message" : "Show full message"} aria-expanded={showBody}>
+            {showBody ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        )}
         {range ? (
           <>
             <span className="mono">{shortSha(range.base)}</span> → <span className="mono">{shortSha(range.target)}</span>
@@ -145,7 +153,7 @@ export function CommitDetailsPane() {
           {details.parents.length > 1 && <span className="pill">merge</span>}
         </div>
       )}
-      {!range && details.body && <pre className="details-body">{details.body}</pre>}
+      {!range && details.body && showBody && <pre className="details-body">{details.body}</pre>}
       <div className="details-tools">
         <button className={`btn btn-icon ${diffStyle === "unified" ? "is-active" : ""}`} onClick={() => changeStyle("unified")} title="Unified">
           <Rows3 size={14} />

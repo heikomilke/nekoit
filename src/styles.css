@@ -194,7 +194,8 @@ button { font: inherit; color: inherit; }
 .details { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
 .details-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
 .details-head { padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--bg-panel); position: relative; }
-.details-subject { font-weight: 600; font-size: 14px; user-select: text; }
+.details-subject { font-weight: 600; font-size: 14px; user-select: text; display: flex; align-items: center; gap: 4px; }
+.body-toggle { padding: 1px; margin-left: -4px; color: var(--fg-muted); }
 .details-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 3px; font-size: 12px; user-select: text; }
 .details-body { margin: 8px 0 0; font: 12px/1.45 var(--font-mono); white-space: pre-wrap; color: var(--fg); user-select: text; max-height: 160px; overflow: auto; }
 .details-tools { position: absolute; top: 6px; right: 10px; display: flex; gap: 4px; }
