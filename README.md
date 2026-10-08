@@ -42,6 +42,7 @@ npm run tauri dev        # hot-reloading app
 npm run typecheck        # tsc
 npm test                 # vitest (graph layout etc.)
 cargo test -p nekoit-git # Rust unit tests
+npm run release          # optimised build, installed to ~/.local/bin/nekoit for the desktop launcher
 cargo run -p nekoit-git --example probe -- ~/projects ~/projects/app/main   # exercise the git layer
 ```
 
