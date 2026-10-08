@@ -245,10 +245,10 @@ export function CommitDetailsPane() {
         e.preventDefault();
         void pick();
       }
-      if ((e.key === "n" || e.key === "N") && !e.ctrlKey && !e.metaKey) {
+      if ((e.key === "n" || e.key === "N" || e.key === "b") && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        if (e.shiftKey) nav.prev();
-        else nav.next();
+        if (e.key === "n") nav.next();
+        else nav.prev();
       }
       if (e.key === "Escape" && (armed || lineRange)) {
         e.stopPropagation();

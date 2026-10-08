@@ -126,7 +126,7 @@ export function DiffNavButtons({ nav }: { nav: DiffNav }) {
   const n = nav.blocks.length;
   return (
     <span className="diff-nav">
-      <button className="btn btn-icon" onClick={nav.prev} disabled={n === 0} title="Previous change (shift+n)">
+      <button className="btn btn-icon" onClick={nav.prev} disabled={n === 0} title="Previous change (b, or shift+n)">
         <ChevronUp size={14} />
       </button>
       <span className="diff-nav-pos muted" title="Change blocks in this diff">

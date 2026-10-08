@@ -330,6 +330,7 @@ export function ChangesPane() {
           nav.next();
           break;
         case "N":
+        case "b":
           e.preventDefault();
           nav.prev();
           break;
