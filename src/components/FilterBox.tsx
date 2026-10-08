@@ -32,17 +32,19 @@ interface Props {
   value: string;
   onChange(v: string): void;
   placeholder?: string;
-  /** Pressing `/` outside a text field focuses this box. */
-  hotkey?: boolean;
+  /** Key that focuses this box: "/" (outside text fields) or "ctrl+f". */
+  hotkey?: "/" | "ctrl+f" | null;
 }
 
-export function FilterBox({ value, onChange, placeholder = "filter (regex)", hotkey = true }: Props) {
+export function FilterBox({ value, onChange, placeholder = "filter (regex)", hotkey = "/" }: Props) {
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!hotkey) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (e.key === "/" && !(t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement)) {
+      const inText = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement;
+      const hit = hotkey === "/" ? e.key === "/" && !inText : e.key === "f" && e.ctrlKey && !e.shiftKey;
+      if (hit) {
         e.preventDefault();
         input.current?.focus();
         input.current?.select();
@@ -53,7 +55,7 @@ export function FilterBox({ value, onChange, placeholder = "filter (regex)", hot
   }, [hotkey]);
   const invalid = value.trim() !== "" && !isValidRegex(value.trim());
   return (
-    <label className={`filter ${invalid ? "is-plain" : ""}`} title={invalid ? "Not a valid regex: matching as plain text" : "Regular expression, case-insensitive. Press / to focus, Esc to clear."}>
+    <label className={`filter ${invalid ? "is-plain" : ""}`} title={invalid ? "Not a valid regex: matching as plain text" : `Regular expression, case-insensitive.${hotkey ? ` Press ${hotkey} to focus,` : ""} Esc to clear.`}>
       <Filter size={12} className="muted" />
       <input
         ref={input}

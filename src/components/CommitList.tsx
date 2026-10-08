@@ -1,9 +1,10 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { Commit } from "../api";
 import { GraphCell, LANE_WIDTH } from "../graph/GraphCell";
 import { laneColor } from "../graph/colors";
 import { layoutGraph } from "../graph/layout";
+import { FilterBox, usePathFilter } from "./FilterBox";
 import { RefChips } from "./RefChips";
 import { WORKDIR, useStore } from "../store";
 import { relativeTime, shortSha } from "../util/format";
@@ -35,19 +36,33 @@ export const CommitList = forwardRef<CommitListHandle, Props>(function CommitLis
   const current = useStore((s) => s.current);
   const select = useStore((s) => s.select);
   const loadMore = useStore((s) => s.loadMore);
-  const commits = current?.commits ?? [];
+  const allCommits = current?.commits ?? [];
   const parent = useRef<HTMLDivElement>(null);
 
-  const layout = useMemo(() => layoutGraph(commits), [commits]);
+  // Filter over message, author, sha and ref names of the loaded commits. While it is
+  // active the lane graph is meaningless, so rows get a plain dot instead.
+  const [query, setQuery] = useState("");
+  const matches = usePathFilter(query);
+  const filtering = query.trim() !== "";
+  const refsBySha = current?.refsBySha;
+  const commits = useMemo(() => {
+    if (!filtering) return allCommits;
+    return allCommits.filter(
+      (c) => matches(c.subject) || matches(c.authorName) || matches(c.sha) || (refsBySha?.get(c.sha) ?? []).some((r) => matches(r.short)),
+    );
+  }, [allCommits, filtering, matches, refsBySha]);
+
+  const layout = useMemo(() => (filtering ? null : layoutGraph(commits)), [commits, filtering]);
   // Row 0 is the virtual "working changes" row of the active worktree.
   const wt = current?.worktree ?? null;
-  const hasWorkdir = !!wt;
+  const hasWorkdir = !!wt && !filtering;
   const offset = hasWorkdir ? 1 : 0;
   const indexBySha = useMemo(() => new Map(commits.map((c, i) => [c.sha, i + offset])), [commits, offset]);
   const headRow = wt ? indexBySha.get(wt.head) : undefined;
-  const headLayout = headRow !== undefined ? layout.rows[headRow - offset] : undefined;
+  const headLayout = headRow !== undefined && layout ? layout.rows[headRow - offset] : undefined;
 
   useEffect(() => {
+    if (!layout) return;
     const m = new Map<string, number>();
     commits.forEach((c, i) => m.set(c.sha, layout.rows[i].color));
     onLayout(m);
@@ -102,11 +117,18 @@ export const CommitList = forwardRef<CommitListHandle, Props>(function CommitLis
   }, [commits, current, indexBySha, select, virtualizer, hasWorkdir, offset]);
 
   if (!current) return null;
-  const { refsBySha, worktreesBySha, worktree, selected, statuses, tracks } = current;
-  const graphWidth = layout.maxLanes * LANE_WIDTH;
+  const { worktreesBySha, worktree, selected, statuses, tracks } = current;
+  const graphWidth = (layout?.maxLanes ?? 1) * LANE_WIDTH;
   const dirty = wt ? (statuses[wt.path]?.entries.filter((e) => !e.ignored).length ?? 0) : 0;
 
   return (
+    <div className="commit-pane">
+      <div className="commit-toolbar">
+        <span className="muted">
+          {filtering ? `${commits.length} of ${allCommits.length} loaded commits` : `${allCommits.length} commits${current.hasMore ? "+" : ""}`}
+        </span>
+        <FilterBox value={query} onChange={setQuery} placeholder="filter commits (regex: message, author, sha, ref)" hotkey="ctrl+f" />
+      </div>
     <div ref={parent} className="commit-list" tabIndex={0} role="listbox" aria-label="Commits">
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {items.map((v) => {
@@ -122,7 +144,7 @@ export const CommitList = forwardRef<CommitListHandle, Props>(function CommitLis
                 onClick={() => select(WORKDIR, false)}
               >
                 <div className="commit-graph" style={{ width: graphWidth }}>
-                  <WorkdirCell lane={headLayout?.lane ?? 0} color={headLayout?.color ?? 0} lanes={layout.maxLanes} height={ROW_HEIGHT} />
+                  <WorkdirCell lane={headLayout?.lane ?? 0} color={headLayout?.color ?? 0} lanes={layout?.maxLanes ?? 1} height={ROW_HEIGHT} />
                 </div>
                 <div className="commit-subject">
                   <span className={`subject-text ${dirty > 0 ? "has-changes" : ""}`}>
@@ -136,9 +158,10 @@ export const CommitList = forwardRef<CommitListHandle, Props>(function CommitLis
             );
           }
           const c: Commit = commits[v.index - offset];
-          const row = layout.rows[v.index - offset];
+          const row = layout?.rows[v.index - offset];
           const isSel = selected.includes(c.sha);
           const wts = worktreesBySha.get(c.sha);
+          const color = row ? laneColor(row.color) : "var(--fg-muted)";
           return (
             <div
               key={c.sha}
@@ -150,10 +173,10 @@ export const CommitList = forwardRef<CommitListHandle, Props>(function CommitLis
               title={tracks.get(c.sha) ? `on ${tracks.get(c.sha)}` : undefined}
             >
               <div className="commit-graph" style={{ width: graphWidth }}>
-                <GraphCell row={row} height={ROW_HEIGHT} lanes={layout.maxLanes} highlighted={isSel} worktree={!!wts} />
+                {row && layout ? <GraphCell row={row} height={ROW_HEIGHT} lanes={layout.maxLanes} highlighted={isSel} worktree={!!wts} /> : <span className="flat-dot" />}
               </div>
               <div className="commit-subject">
-                <RefChips refs={refsBySha.get(c.sha)} worktrees={wts} activeWorktree={worktree?.path ?? null} color={laneColor(row.color)} />
+                <RefChips refs={refsBySha?.get(c.sha)} worktrees={wts} activeWorktree={worktree?.path ?? null} color={color} />
                 <span className="subject-text" title={c.subject}>
                   {c.subject}
                 </span>
@@ -169,6 +192,8 @@ export const CommitList = forwardRef<CommitListHandle, Props>(function CommitLis
           );
         })}
       </div>
+      {filtering && commits.length === 0 && <div className="muted pad">No loaded commit matches.</div>}
+    </div>
     </div>
   );
 });
