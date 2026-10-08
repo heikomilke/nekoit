@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { onGitCommand } from "./api";
 import { CommandLog } from "./components/CommandLog";
 import { Dashboard } from "./screens/Dashboard";
@@ -33,6 +34,10 @@ export default function App() {
       if (e.key === "`" && e.ctrlKey) {
         e.preventDefault();
         toggleLog();
+      }
+      if (e.key === "q" && e.ctrlKey && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        void getCurrentWindow().close();
       }
       // F5 reloads whatever is on screen: the repo graph and statuses, or the dashboard.
       if (e.key === "F5") {
