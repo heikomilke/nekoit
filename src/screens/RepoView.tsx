@@ -21,15 +21,11 @@ export function RepoView() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "F5") {
-        e.preventDefault();
-        void reloadLog();
-      }
-      if (e.key === "Escape" && !(e.target instanceof HTMLInputElement)) closeRepo();
+      if (e.key === "Escape" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) closeRepo();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [reloadLog, closeRepo]);
+  }, [closeRepo]);
 
   if (!current) return null;
   const { repo } = current;

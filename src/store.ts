@@ -5,6 +5,7 @@ import {
   type Commit,
   type CommandRecord,
   type RefInfo,
+  type RepoChange,
   type RepoInfo,
   type WorktreeInfo,
   type WorktreeStatus,
@@ -58,6 +59,10 @@ interface State {
   refreshStatus(worktreePath: string): Promise<void>;
   select(sha: string, extend: boolean): void;
   pushCommand(rec: CommandRecord): void;
+  /** React to a filesystem change reported by the watcher. */
+  onRepoChanged(change: RepoChange): void;
+  /** Re-run git status for every worktree of the open repo. */
+  refreshStatuses(): void;
   toggleLog(): void;
   setError(msg: string | null): void;
 }
@@ -173,9 +178,11 @@ export const useStore = create<State>((set, get) => ({
     void get().saveConfig({ lastRepo: repo.id, lastWorktree: wt?.path ?? null });
     await get().reloadLog();
     for (const w of repo.worktrees) void get().refreshStatus(w.path);
+    api.watchRepo(repo.commonDir).catch((e) => set({ error: errorMessage(e) }));
   },
 
   closeRepo() {
+    void api.unwatchRepo();
     set({ screen: { kind: "dashboard" }, current: null });
     void get().saveConfig({ lastRepo: null });
     void get().refreshRepos();
@@ -202,6 +209,7 @@ export const useStore = create<State>((set, get) => ({
       const now = get().current;
       if (!now || now.repo.id !== cur.repo.id) return;
       const repo = { ...now.repo, worktrees };
+      for (const w of worktrees) void get().refreshStatus(w.path);
       const worktree = worktrees.find((w) => w.path === now.worktree?.path) ?? now.worktree;
       set({
         current: {
@@ -264,6 +272,18 @@ export const useStore = create<State>((set, get) => ({
 
   pushCommand(rec) {
     set((s) => ({ commandLog: [...s.commandLog.slice(-499), rec] }));
+  },
+
+  onRepoChanged(change) {
+    const cur = get().current;
+    if (!cur) return;
+    if (change.kind === "refs") void get().reloadLog();
+  },
+
+  refreshStatuses() {
+    const cur = get().current;
+    if (!cur) return;
+    for (const w of cur.repo.worktrees) void get().refreshStatus(w.path);
   },
 
   toggleLog() {

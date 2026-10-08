@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod watch;
 
 use std::sync::{Arc, Mutex};
 
@@ -21,6 +22,7 @@ pub fn run() {
                 let _ = handle.emit(GIT_COMMAND_EVENT, record);
             }));
             app.manage(AppState { git, config: Mutex::new(config::load()) });
+            app.manage(watch::WatchState::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -46,6 +48,8 @@ pub fn run() {
             commands::discard,
             commands::commit,
             commands::resolve,
+            commands::watch_repo,
+            commands::unwatch_repo,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
