@@ -108,8 +108,6 @@ export interface CommandRecord {
   stderr: string;
 }
 
-export type RepoChange = { kind: "refs" };
-
 export type Theme = "system" | "light" | "dark";
 
 export interface AppConfig {
@@ -156,14 +154,9 @@ export const api = {
   commit: (worktree: string, message: string, amend: boolean, author?: string) =>
     invoke<string>("commit", { worktree, message, amend, author: author ?? null }),
   resolve: (repo: string, rev: string) => invoke<string>("resolve", { repo, rev }),
-  watchRepo: (commonDir: string) => invoke<void>("watch_repo", { commonDir }),
-  unwatchRepo: () => invoke<void>("unwatch_repo"),
 };
 
 export function onGitCommand(handler: (record: CommandRecord) => void): Promise<UnlistenFn> {
   return listen<CommandRecord>("git-command", (e) => handler(e.payload));
 }
 
-export function onRepoChanged(handler: (change: RepoChange) => void): Promise<UnlistenFn> {
-  return listen<RepoChange>("repo-changed", (e) => handler(e.payload));
-}

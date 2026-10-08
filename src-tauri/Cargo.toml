@@ -21,5 +21,3 @@ tauri-plugin-dialog = "2"
 serde.workspace = true
 serde_json.workspace = true
 dirs = "6"
-notify = "8"
-notify-debouncer-full = "0.5"

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { onGitCommand, onRepoChanged } from "./api";
+import { onGitCommand } from "./api";
 import { CommandLog } from "./components/CommandLog";
 import { Dashboard } from "./screens/Dashboard";
 import { RepoView } from "./screens/RepoView";
@@ -11,19 +11,16 @@ export default function App() {
   const logOpen = useStore((s) => s.logOpen);
   const init = useStore((s) => s.init);
   const pushCommand = useStore((s) => s.pushCommand);
-  const onChanged = useStore((s) => s.onRepoChanged);
   const toggleLog = useStore((s) => s.toggleLog);
   const setError = useStore((s) => s.setError);
 
   useEffect(() => {
     void init();
     const unlisten = onGitCommand(pushCommand);
-    const unlisten2 = onRepoChanged(onChanged);
     return () => {
       void unlisten.then((f) => f());
-      void unlisten2.then((f) => f());
     };
-  }, [init, pushCommand, onChanged]);
+  }, [init, pushCommand]);
 
   const refreshStatuses = useStore((s) => s.refreshStatuses);
   const refreshRepos = useStore((s) => s.refreshRepos);

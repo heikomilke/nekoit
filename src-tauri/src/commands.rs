@@ -7,10 +7,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use nekoit_git as g;
-use tauri::{AppHandle, State};
+use tauri::State;
 
 use crate::config::{self, AppConfig};
-use crate::watch::{self, WatchState};
 
 pub struct AppState {
     pub git: Arc<g::Git>,
@@ -172,17 +171,4 @@ pub async fn commit(state: State<'_, AppState>, worktree: String, message: Strin
 #[tauri::command]
 pub async fn resolve(state: State<'_, AppState>, repo: String, rev: String) -> R<String> {
     blocking(&state.git, move |git| g::resolve(git, &p(&repo), &rev)).await
-}
-
-/// Watch the repository's git dir; emits `repo-changed` events when refs change.
-#[tauri::command]
-pub async fn watch_repo(app: AppHandle, state: State<'_, WatchState>, common_dir: String) -> R<()> {
-    watch::watch(app, &state, common_dir);
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn unwatch_repo(state: State<'_, WatchState>) -> R<()> {
-    watch::unwatch(&state);
-    Ok(())
 }
