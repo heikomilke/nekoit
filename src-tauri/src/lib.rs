@@ -32,6 +32,7 @@ pub fn run() {
             commands::worktrees,
             commands::log,
             commands::refs,
+            commands::refs_containing,
             commands::commit_details,
             commands::commit_changes,
             commands::changes_between,

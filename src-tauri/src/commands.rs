@@ -199,3 +199,8 @@ pub async fn push(
 ) -> R<g::RemoteResult> {
     blocking(&state.git, move |git| g::push(git, &p(&worktree), remote.as_deref(), branch.as_deref(), set_upstream, force_with_lease)).await
 }
+
+#[tauri::command]
+pub async fn refs_containing(state: State<'_, AppState>, repo: String, sha: String) -> R<Vec<String>> {
+    blocking(&state.git, move |git| g::refs_containing(git, &p(&repo), &sha, 30)).await
+}

@@ -225,3 +225,13 @@ pub fn resolve(git: &Git, repo: &Path, rev: &str) -> Result<String> {
     let out = git.run(repo, &["rev-parse", "--verify", "--end-of-options", &format!("{rev}^{{commit}}")])?;
     Ok(out.trim().to_string())
 }
+
+/// Short names of local and remote branches that contain `sha`, local first.
+pub fn refs_containing(git: &Git, repo: &Path, sha: &str, limit: usize) -> Result<Vec<String>> {
+    let count = format!("--count={limit}");
+    let out = git.run(
+        repo,
+        &["for-each-ref", "--format=%(refname:short)", &count, "--contains", sha, "refs/heads", "refs/remotes"],
+    )?;
+    Ok(out.lines().filter(|l| !l.is_empty() && !l.ends_with("/HEAD")).map(str::to_string).collect())
+}

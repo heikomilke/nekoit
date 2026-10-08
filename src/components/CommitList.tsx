@@ -102,7 +102,7 @@ export const CommitList = forwardRef<CommitListHandle, Props>(function CommitLis
   }, [commits, current, indexBySha, select, virtualizer, hasWorkdir, offset]);
 
   if (!current) return null;
-  const { refsBySha, worktreesBySha, worktree, selected, statuses } = current;
+  const { refsBySha, worktreesBySha, worktree, selected, statuses, tracks } = current;
   const graphWidth = layout.maxLanes * LANE_WIDTH;
   const dirty = wt ? (statuses[wt.path]?.entries.filter((e) => !e.ignored).length ?? 0) : 0;
 
@@ -147,6 +147,7 @@ export const CommitList = forwardRef<CommitListHandle, Props>(function CommitLis
               className={`commit-row ${isSel ? "is-selected" : ""} ${selected[0] === c.sha ? "is-primary" : ""}`}
               style={{ transform: `translateY(${v.start}px)`, height: ROW_HEIGHT }}
               onClick={(e) => select(c.sha, e.ctrlKey || e.metaKey || e.shiftKey)}
+              title={tracks.get(c.sha) ? `on ${tracks.get(c.sha)}` : undefined}
             >
               <div className="commit-graph" style={{ width: graphWidth }}>
                 <GraphCell row={row} height={ROW_HEIGHT} lanes={layout.maxLanes} highlighted={isSel} worktree={!!wts} />

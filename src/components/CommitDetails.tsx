@@ -2,6 +2,8 @@ import { ChevronDown, ChevronRight, Columns2, Rows3 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type CommitDetails as Details, type FileChange } from "../api";
 import { useStore } from "../store";
+import { laneColor } from "../graph/colors";
+import { layoutGraph } from "../graph/layout";
 import { absoluteTime, errorMessage, shortSha } from "../util/format";
 import { useDarkTheme } from "../util/theme";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -29,10 +31,19 @@ export function CommitDetailsPane() {
   const [pair, setPair] = useState<{ a: string; b: string; aText: string; bText: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [showBody, setShowBody] = useState(false);
+  const [containing, setContaining] = useState<string[]>([]);
 
   const repoDir = current?.repo.commonDir ?? "";
   const selected = current?.selected ?? [];
   const commits = current?.commits ?? [];
+  const tracks = current?.tracks;
+  // Lane colour of the selected commit, so the header dot matches the graph.
+  const laneColorOf = useMemo(() => {
+    const rows = layoutGraph(commits).rows;
+    const m = new Map<string, string>();
+    commits.forEach((c, i) => m.set(c.sha, laneColor(rows[i].color)));
+    return m;
+  }, [commits]);
 
   // Range: the lower row in the list is the older commit → base.
   const range = useMemo(() => {
@@ -49,6 +60,20 @@ export function CommitDetailsPane() {
     setDiffStyle(s);
     localStorage.setItem("diffStyle", s);
   };
+
+  // Branches that contain the selected commit (exact, via git), loaded lazily.
+  useEffect(() => {
+    setContaining([]);
+    if (!repoDir || !target) return;
+    let live = true;
+    api
+      .refsContaining(repoDir, target)
+      .then((r) => live && setContaining(r))
+      .catch(() => live && setContaining([]));
+    return () => {
+      live = false;
+    };
+  }, [repoDir, target]);
 
   // Load header + file list whenever the commit selection changes.
   useEffect(() => {
@@ -156,6 +181,26 @@ export function CommitDetailsPane() {
             {shortSha(details.sha, 12)}
           </span>
           {details.parents.length > 1 && <span className="pill">merge</span>}
+        </div>
+      )}
+      {!range && (tracks?.get(target) || containing.length > 0) && (
+        <div className="details-branches">
+          {tracks?.get(target) && (
+            <span className="track" style={{ "--chip-color": laneColorOf.get(target) ?? "var(--fg-muted)" } as React.CSSProperties} title="Branch this lane belongs to (first-parent descent from the tip)">
+              <span className="track-dot" />
+              {tracks.get(target)}
+            </span>
+          )}
+          {containing.length > 0 && (
+            <span className="muted containing" title="Branches that contain this commit">
+              in{" "}
+              {containing.map((b) => (
+                <span key={b} className="containing-ref">
+                  {b}
+                </span>
+              ))}
+            </span>
+          )}
         </div>
       )}
       {!range && details.body && showBody && <pre className="details-body">{details.body}</pre>}

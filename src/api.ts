@@ -146,6 +146,7 @@ export const api = {
       options: { all: true, revs: [], limit: 1000, skip: 0, path: null, firstParent: false, ...options },
     }),
   refs: (repo: string) => invoke<RefInfo[]>("refs", { repo }),
+  refsContaining: (repo: string, sha: string) => invoke<string[]>("refs_containing", { repo, sha }),
   commitDetails: (repo: string, rev: string) => invoke<CommitDetails>("commit_details", { repo, rev }),
   commitChanges: (repo: string, sha: string) => invoke<FileChange[]>("commit_changes", { repo, sha }),
   changesBetween: (repo: string, base: string, target: string) =>

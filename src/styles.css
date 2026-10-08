@@ -238,10 +238,12 @@ button { font: inherit; color: inherit; }
 .diff-files { display: flex; flex-direction: column; gap: 10px; padding: 8px; }
 
 /* ---------- command log ---------- */
-.cmdlog { height: 220px; flex: none; border-top: 1px solid var(--border); background: var(--bg-panel); display: flex; flex-direction: column; }
+.cmdlog { flex: none; border-top: 1px solid var(--border); background: var(--bg-panel); display: flex; flex-direction: column; position: relative; min-height: 80px; }
+.cmdlog-grip { position: absolute; top: -4px; left: 0; right: 0; height: 8px; cursor: row-resize; z-index: 2; }
+.cmdlog-grip:hover { background: color-mix(in srgb, var(--accent) 35%, transparent); }
 .cmdlog-head { display: flex; align-items: center; gap: 10px; padding: 4px 10px; border-bottom: 1px solid var(--border); }
 .cmdlog-title { font-weight: 600; font-size: 12px; }
-.cmdlog-head .btn { margin-left: auto; }
+.cmdlog-head .check { margin-left: auto; font-size: 12px; }
 .cmdlog-body { flex: 1; overflow: auto; font-size: 12px; }
 .cmdlog-row { display: flex; gap: 10px; align-items: baseline; padding: 2px 10px; flex-wrap: wrap; cursor: default; }
 .cmdlog-row:hover { background: var(--bg-hover); }
@@ -288,3 +290,10 @@ button { font: inherit; color: inherit; }
 .menu-item:disabled { opacity: 0.45; cursor: default; }
 .menu-item.is-danger { color: var(--danger); }
 .menu-hint { font-size: 11px; color: var(--fg-muted); font-family: var(--font-mono); }
+
+/* branch identification in the details header */
+.details-branches { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; }
+.track { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--chip-color); }
+.track-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--chip-color); box-shadow: 0 0 0 2px color-mix(in srgb, var(--chip-color) 30%, transparent); }
+.containing { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: baseline; }
+.containing-ref { font-family: var(--font-mono); font-size: 11px; padding: 0 5px; border: 1px solid var(--border); border-radius: 4px; }

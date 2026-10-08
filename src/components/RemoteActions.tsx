@@ -22,10 +22,14 @@ export function RemoteActions() {
   const run = async (op: Op, task: () => Promise<RemoteResult>, label: string) => {
     if (busy) return;
     setBusy(op);
+    const before = useStore.getState().commandLog.length;
     try {
       const r = await task();
       const text = (r.stderr.trim() || r.stdout.trim()).split("\n").filter((l) => !l.startsWith("From ") && !l.startsWith("To ")).slice(-2).join(" · ");
-      setNotice(`${label}: ${text || "done"}`);
+      // The exact command git ran is the first log entry recorded since we started.
+      const ran = useStore.getState().commandLog[before];
+      const cmd = ran ? `git ${ran.args.filter((a) => a !== "--no-progress").join(" ")}` : label;
+      setNotice(`${cmd} → ${text || "done"}`);
       await reloadLog();
     } catch (e) {
       setError(errorMessage(e));

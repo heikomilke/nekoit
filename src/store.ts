@@ -9,6 +9,7 @@ import {
   type WorktreeInfo,
   type WorktreeStatus,
 } from "./api";
+import { computeTracks } from "./graph/tracks";
 import { errorMessage } from "./util/format";
 
 export type Screen = { kind: "dashboard" } | { kind: "repo"; repoId: string };
@@ -28,6 +29,8 @@ export interface RepoState {
   refs: RefInfo[];
   refsBySha: Map<string, RefInfo[]>;
   worktreesBySha: Map<string, WorktreeInfo[]>;
+  /** Branch name each commit's lane belongs to, by first-parent descent from the tips. */
+  tracks: Map<string, string>;
   /** Status per worktree path, loaded lazily. */
   statuses: Record<string, WorktreeStatus | undefined>;
   /** Selected commit shas, newest-first as clicked; at most two. */
@@ -172,6 +175,7 @@ export const useStore = create<State>((set, get) => ({
         refs: [],
         refsBySha: new Map(),
         worktreesBySha: indexWorktrees(repo.worktrees),
+        tracks: new Map(),
         statuses: {},
         selected: [],
       },
@@ -209,6 +213,8 @@ export const useStore = create<State>((set, get) => ({
       if (!now || now.repo.id !== cur.repo.id) return;
       const repo = { ...now.repo, worktrees };
       for (const w of worktrees) void get().refreshStatus(w.path);
+      const refsBySha = indexRefs(refs);
+      const worktreesBySha = indexWorktrees(worktrees);
       const worktree = worktrees.find((w) => w.path === now.worktree?.path) ?? now.worktree;
       set({
         current: {
@@ -219,8 +225,9 @@ export const useStore = create<State>((set, get) => ({
           hasMore: page.hasMore,
           loadingLog: false,
           refs,
-          refsBySha: indexRefs(refs),
-          worktreesBySha: indexWorktrees(worktrees),
+          refsBySha,
+          worktreesBySha,
+          tracks: computeTracks(page.commits, refsBySha, worktreesBySha),
           selected: now.selected.filter((s) => s === WORKDIR || page.commits.some((c) => c.sha === s)),
         },
       });
@@ -242,7 +249,8 @@ export const useStore = create<State>((set, get) => ({
       });
       const now = get().current;
       if (!now || now.repo.id !== cur.repo.id) return;
-      set({ current: { ...now, commits: [...now.commits, ...page.commits], hasMore: page.hasMore, loadingLog: false } });
+      const commits = [...now.commits, ...page.commits];
+      set({ current: { ...now, commits, hasMore: page.hasMore, loadingLog: false, tracks: computeTracks(commits, now.refsBySha, now.worktreesBySha) } });
     } catch (e) {
       set({ error: errorMessage(e), current: { ...cur, loadingLog: false } });
     }
