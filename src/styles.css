@@ -313,5 +313,6 @@ button { font: inherit; color: inherit; }
 /* commit list toolbar + filtered rows */
 .commit-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .commit-toolbar { flex: none; display: flex; align-items: center; gap: 10px; padding: 3px 10px; font-size: 11px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
-.commit-toolbar .filter-input { width: 260px; }
+.commit-toolbar .filter { margin-left: 0; }
+.commit-toolbar .filter-input { width: 300px; }
 .flat-dot { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--fg-muted); margin-left: 4px; }

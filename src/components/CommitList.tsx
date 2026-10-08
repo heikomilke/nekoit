@@ -124,10 +124,10 @@ export const CommitList = forwardRef<CommitListHandle, Props>(function CommitLis
   return (
     <div className="commit-pane">
       <div className="commit-toolbar">
+        <FilterBox value={query} onChange={setQuery} placeholder="filter commits (regex: message, author, sha, ref)" hotkey="ctrl+f" />
         <span className="muted">
           {filtering ? `${commits.length} of ${allCommits.length} loaded commits` : `${allCommits.length} commits${current.hasMore ? "+" : ""}`}
         </span>
-        <FilterBox value={query} onChange={setQuery} placeholder="filter commits (regex: message, author, sha, ref)" hotkey="ctrl+f" />
       </div>
     <div ref={parent} className="commit-list" tabIndex={0} role="listbox" aria-label="Commits">
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
