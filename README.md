@@ -58,6 +58,7 @@ opened repo/worktree, theme).
 | `ctrl`+click in file list | select a second file → diff the two files |
 | `ctrl+f` | filter commits (regex over message, author, sha, refs) |
 | `/` | filter the file list |
+| `ctrl+↑` / `ctrl+↓` | push / pull (fast-forward, else rebase; aborted with a hint on conflicts) |
 | `ctrl+t` | open the system terminal in the active worktree |
 | `F5` | reload log |
 | `Esc` | back to the dashboard |

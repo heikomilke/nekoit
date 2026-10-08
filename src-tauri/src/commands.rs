@@ -199,6 +199,11 @@ pub async fn pull(state: State<'_, AppState>, worktree: String, mode: g::PullMod
 }
 
 #[tauri::command]
+pub async fn abort_rebase(state: State<'_, AppState>, worktree: String) -> R<()> {
+    blocking(&state.git, move |git| g::abort_rebase(git, &p(&worktree))).await
+}
+
+#[tauri::command]
 pub async fn push(
     state: State<'_, AppState>,
     worktree: String,

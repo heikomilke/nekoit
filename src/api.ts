@@ -179,6 +179,7 @@ export const api = {
   fetch: (repo: string, remote: string | null, prune = true) => invoke<RemoteResult>("fetch", { repo, remote, prune }),
   pull: (worktree: string, mode: PullMode, remote: string | null = null, branch: string | null = null) =>
     invoke<RemoteResult>("pull", { worktree, mode, remote, branch }),
+  abortRebase: (worktree: string) => invoke<void>("abort_rebase", { worktree }),
   push: (worktree: string, opts: { remote?: string | null; branch?: string | null; setUpstream?: boolean; forceWithLease?: boolean } = {}) =>
     invoke<RemoteResult>("push", {
       worktree,

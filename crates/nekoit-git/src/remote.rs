@@ -110,3 +110,8 @@ pub fn push(git: &Git, worktree: &Path, remote: Option<&str>, branch: Option<&st
     }
     run_net(git, worktree, &args)
 }
+
+/// `git rebase --abort`, used to back out of a failed automatic pull.
+pub fn abort_rebase(git: &Git, worktree: &Path) -> Result<()> {
+    git.run(worktree, &["rebase", "--abort"]).map(|_| ())
+}

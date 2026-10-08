@@ -55,6 +55,7 @@ pub fn run() {
             commands::remotes,
             commands::fetch,
             commands::pull,
+            commands::abort_rebase,
             commands::push,
         ])
         .run(tauri::generate_context!())

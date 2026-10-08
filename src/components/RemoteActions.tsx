@@ -6,6 +6,10 @@ import { errorMessage } from "../util/format";
 
 type Op = "fetch" | "pull" | "push";
 
+function summary(r: RemoteResult): string {
+  return (r.stderr.trim() || r.stdout.trim()).split("\n").filter((l) => !l.startsWith("From ") && !l.startsWith("To ")).slice(-2).join(" · ") || "done";
+}
+
 /** Fetch / Pull ▾ / Push ▾ for the active worktree. Network work runs off the UI thread; the button spins meanwhile. */
 export function RemoteActions() {
   const current = useStore((s) => s.current);
@@ -43,6 +47,49 @@ export function RemoteActions() {
     const label = mode === "rebase" ? "Pull (rebase)" : mode === "ff-only" ? "Pull (fast-forward)" : "Pull (merge)";
     void run("pull", () => api.pull(worktree.path, mode), label);
   };
+
+  /**
+   * Keyboard pull: fast-forward if possible, else rebase. A rebase that stops
+   * on conflicts is aborted again so the worktree stays clean, and the user is
+   * told to resolve it deliberately via the Pull menu.
+   */
+  const smartPull = async () => {
+    if (!worktree || busy) return;
+    setBusy("pull");
+    try {
+      try {
+        const r = await api.pull(worktree.path, "ff-only");
+        setNotice(`git pull --ff-only → ${summary(r)}`);
+      } catch (ffErr) {
+        try {
+          const r = await api.pull(worktree.path, "rebase");
+          setNotice(`fast-forward not possible, rebased instead → ${summary(r)}`);
+        } catch (rebaseErr) {
+          await api.abortRebase(worktree.path).catch(() => undefined);
+          setError(`Pull needs attention: ${worktree.branch ?? "HEAD"} cannot be fast-forwarded and the rebase hit conflicts, so it was aborted. Resolve it via Pull ▾ (merge or rebase) in a terminal.\n${errorMessage(rebaseErr).split("\n").slice(-2).join(" ")}\n(${errorMessage(ffErr).split("\n").slice(-1)[0]})`);
+          return;
+        }
+      }
+      await reloadLog();
+    } finally {
+      setBusy(null);
+    }
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        push(upstream ? {} : { setUpstream: true });
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        void smartPull();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   const push = (opts: { setUpstream?: boolean; forceWithLease?: boolean }) => {
     if (!worktree) return;
     const remote = opts.setUpstream ? "origin" : null;
