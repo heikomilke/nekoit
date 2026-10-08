@@ -176,7 +176,6 @@ button { font: inherit; color: inherit; }
 
 /* ---------- commit list ---------- */
 .commit-list { flex: 1; min-height: 0; overflow: auto; background: var(--bg-panel); outline: none; position: relative; }
-.commit-list:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
 .commit-row {
   position: absolute; left: 0; right: 0; top: 0;
   display: grid; grid-template-columns: auto minmax(0, 1fr) 150px 44px 72px; align-items: center;
