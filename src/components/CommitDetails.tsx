@@ -10,6 +10,7 @@ import { absoluteTime, errorMessage, shortSha } from "../util/format";
 import { useDarkTheme } from "../util/theme";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { FilesView, PatchView, type DiffStyle } from "./DiffView";
+import { DiffMarks, DiffNavButtons, useDiffNav } from "./DiffNav";
 import { FileList } from "./FileList";
 import { SplitPane } from "./SplitPane";
 
@@ -26,6 +27,7 @@ export function CommitDetailsPane() {
   const [diffStyle, setDiffStyle] = useState<DiffStyle>(() => (localStorage.getItem("diffStyle") as DiffStyle) || "unified");
   /** Show whole files instead of hunks; display only, revert/cherry-pick still use normal patches. */
   const [fullDiff, setFullDiff] = useState(() => localStorage.getItem("diffFull") === "1");
+  const diffWrap = useRef<HTMLDivElement>(null);
   const [details, setDetails] = useState<Details | null>(null);
   const [files, setFiles] = useState<FileChange[]>([]);
   const filesRef = useRef<FileChange[]>([]);
@@ -33,6 +35,7 @@ export function CommitDetailsPane() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [patch, setPatch] = useState<string>("");
   const [pair, setPair] = useState<{ a: string; b: string; aText: string; bText: string } | null>(null);
+  const nav = useDiffNav(pair ? "" : patch, diffWrap);
   const [loading, setLoading] = useState(false);
   const [showBody, setShowBody] = useState(false);
   const [containing, setContaining] = useState<string[]>([]);
@@ -242,6 +245,11 @@ export function CommitDetailsPane() {
         e.preventDefault();
         void pick();
       }
+      if ((e.key === "n" || e.key === "N") && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        if (e.shiftKey) nav.prev();
+        else nav.next();
+      }
       if (e.key === "Escape" && (armed || lineRange)) {
         e.stopPropagation();
         setArmed(null);
@@ -250,7 +258,7 @@ export function CommitDetailsPane() {
     };
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, [revert, pick, armed, lineRange]);
+  }, [revert, pick, armed, lineRange, nav]);
 
   const onSelectFile = useCallback((path: string, extend: boolean) => {
     setSelectedFiles((cur) => {
@@ -353,6 +361,7 @@ export function CommitDetailsPane() {
         <button className={`btn btn-icon ${fullDiff ? "is-active" : ""}`} onClick={toggleFull} title={fullDiff ? "Showing the whole file; click for changed hunks only" : "Showing changed hunks; click for the whole file"}>
           <UnfoldVertical size={14} />
         </button>
+        <DiffNavButtons nav={nav} />
       </div>
     </header>
   );
@@ -368,7 +377,7 @@ export function CommitDetailsPane() {
         className="details-split"
         first={<FileList files={files} selected={selectedFiles} onSelect={onSelectFile} title={range ? "Changed between" : "Changed files"} />}
         second={
-          <div className="diff-pane">
+          <div className="diff-pane diff-wrap" ref={diffWrap}>
             <ErrorBoundary resetKey={pair ?? patch}>
               {pair ? (
                 <FilesView dark={dark} diffStyle={diffStyle} oldName={pair.a} oldContents={pair.aText} newName={pair.b} newContents={pair.bText} />
@@ -383,6 +392,7 @@ export function CommitDetailsPane() {
                 />
               )}
             </ErrorBoundary>
+            {fullDiff && !pair && <DiffMarks nav={nav} />}
           </div>
         }
       />

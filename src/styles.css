@@ -269,7 +269,17 @@ button { font: inherit; color: inherit; }
 .btn-primary:hover { filter: brightness(1.1); background: var(--accent); }
 .changes-diff { display: flex; flex-direction: column; overflow: hidden; }
 .changes-diff-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 4px 10px; border-bottom: 1px solid var(--border); background: var(--bg-panel); min-height: 32px; }
-.changes-diff > .diff-files, .changes-diff > .diff, .changes-diff > .diff-empty { flex: 1; min-height: 0; overflow: auto; }
+/* A diff body: the renderer's output scrolls, the marks strip overlays its right edge. */
+.diff-wrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.diff-wrap > .diff-files, .diff-wrap > .diff, .diff-wrap > .diff-empty { flex: 1; min-height: 0; overflow: auto; }
+.diff-nav { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; }
+.diff-nav-pos { font: 11px var(--font-mono); min-width: 34px; text-align: center; }
+.diff-marks { position: absolute; top: 0; right: 0; bottom: 0; width: 10px; pointer-events: none; }
+.diff-mark { position: absolute; left: 1px; right: 1px; height: 3px; border-radius: 1px; pointer-events: auto; cursor: pointer; opacity: 0.85; }
+.diff-mark.mark-add { background: var(--ok); }
+.diff-mark.mark-del { background: var(--danger); }
+.diff-mark.mark-mixed { background: linear-gradient(90deg, var(--danger) 50%, var(--ok) 50%); }
+.diff-mark.is-current { outline: 1px solid var(--fg); opacity: 1; }
 
 /* virtual working-changes row */
 .commit-row.is-workdir .subject-text { font-style: italic; color: var(--fg-muted); }

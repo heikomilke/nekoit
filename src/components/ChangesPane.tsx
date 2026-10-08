@@ -10,6 +10,7 @@ import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { basename, dirname, errorMessage } from "../util/format";
 import { useDarkTheme } from "../util/theme";
 import { PatchView, type DiffStyle } from "./DiffView";
+import { DiffMarks, DiffNavButtons, useDiffNav } from "./DiffNav";
 import { FilterBox, usePathFilter } from "./FilterBox";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { SplitPane } from "./SplitPane";
@@ -46,6 +47,8 @@ export function ChangesPane() {
   const [diffStyle, setDiffStyle] = useState<DiffStyle>(() => (localStorage.getItem("diffStyle") as DiffStyle) || "unified");
   /** Show whole files instead of hunks; display only, actions still use normal patches. */
   const [fullDiff, setFullDiff] = useState(() => localStorage.getItem("diffFull") === "1");
+  const diffWrap = useRef<HTMLDivElement>(null);
+  const nav = useDiffNav(patch, diffWrap);
   const [message, setMessage] = useState("");
   const [amend, setAmend] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -322,6 +325,14 @@ export function ChangesPane() {
           e.preventDefault();
           void discard();
           break;
+        case "n":
+          e.preventDefault();
+          nav.next();
+          break;
+        case "N":
+          e.preventDefault();
+          nav.prev();
+          break;
         case "Escape":
           if (armed || range) {
             e.stopPropagation();
@@ -333,7 +344,7 @@ export function ChangesPane() {
     };
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, [pick, staged, unstaged, move, stageAll, doCommit, entry, ignore, discard, armed, range]);
+  }, [pick, staged, unstaged, move, stageAll, doCommit, entry, ignore, discard, armed, range, nav]);
 
   const changeStyle = (s: DiffStyle) => {
     setDiffStyle(s);
@@ -425,10 +436,14 @@ export function ChangesPane() {
               <button className={`btn btn-icon ${fullDiff ? "is-active" : ""}`} onClick={toggleFull} title={fullDiff ? "Showing the whole file; click for changed hunks only" : "Showing changed hunks; click for the whole file"}>
                 <UnfoldVertical size={14} />
               </button>
+              <DiffNavButtons nav={nav} />
             </div>
-            <ErrorBoundary resetKey={patch}>
-              {pick && <PatchView dark={dark} diffStyle={diffStyle} patch={patch} enableLineSelection selectedLines={range} onLineSelected={setRange} />}
-            </ErrorBoundary>
+            <div className="diff-wrap" ref={diffWrap}>
+              <ErrorBoundary resetKey={patch}>
+                {pick && <PatchView dark={dark} diffStyle={diffStyle} patch={patch} enableLineSelection selectedLines={range} onLineSelected={setRange} />}
+              </ErrorBoundary>
+              {fullDiff && <DiffMarks nav={nav} />}
+            </div>
           </div>
         }
       />
