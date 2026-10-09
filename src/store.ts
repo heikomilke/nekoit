@@ -181,7 +181,8 @@ export const useStore = create<State>((set, get) => ({
         worktreesBySha: indexWorktrees(repo.worktrees),
         tracks: new Map(),
         statuses: {},
-        selected: [],
+        // Land on the working changes of the active worktree, changed or not.
+        selected: wt ? [WORKDIR] : [],
       },
     });
     void get().saveConfig({ lastRepo: repo.id, lastWorktree: wt?.path ?? null });
