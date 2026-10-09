@@ -16,6 +16,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // Remembers window size, position and maximized state across restarts.
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .setup(|app| {
             let handle = app.handle().clone();
             let git = nekoit_git::Git::with_sink(Arc::new(move |record| {
