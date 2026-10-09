@@ -1,5 +1,5 @@
 import type { SelectedLineRange } from "@pierre/diffs/react";
-import { Cherry, ChevronDown, ChevronRight, Columns2, Rows3, Undo2, UnfoldVertical } from "lucide-react";
+import { ArrowLeftRight, Cherry, ChevronDown, ChevronRight, Columns2, Rows3, Undo2, UnfoldVertical } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildPartialPatch, keepRows, parseUnifiedDiff, rowFor } from "../diff/unified";
 import { api, type CommitDetails as Details, type FileChange } from "../api";
@@ -17,7 +17,7 @@ import { SplitPane } from "./SplitPane";
 /**
  * Bottom pane: what the selection means.
  *  - one commit   → its message, metadata, changed files, diff vs first parent
- *  - two commits  → changed files and diff between them (older → newer)
+ *  - two commits  → changed files and diff between them (first picked → second picked)
  *  - two files    → ad-hoc diff between those two files at the shown revision
  */
 export function CommitDetailsPane() {
@@ -61,14 +61,18 @@ export function CommitDetailsPane() {
     return m;
   }, [commits]);
 
-  // Range: the lower row in the list is the older commit → base.
+  // Range: the commit picked first is the base, the second one the target
+  // (the store keeps the newest pick in front), so the diff reads in pick order.
   const range = useMemo(() => {
     if (selected.length !== 2) return null;
-    const [x, y] = selected;
-    const ix = commits.findIndex((c) => c.sha === x);
-    const iy = commits.findIndex((c) => c.sha === y);
-    return ix > iy ? { base: x, target: y } : { base: y, target: x };
-  }, [selected, commits]);
+    const [second, first] = selected;
+    return { base: first, target: second };
+  }, [selected]);
+  const swapRange = useCallback(() => {
+    if (selected.length !== 2) return;
+    select(selected[1], false);
+    select(selected[0], true);
+  }, [selected, select]);
   const single = selected.length === 1 ? selected[0] : null;
   const target = range?.target ?? single;
 
@@ -284,7 +288,10 @@ export function CommitDetailsPane() {
         {range ? (
           <>
             <span className="mono">{shortSha(range.base)}</span> → <span className="mono">{shortSha(range.target)}</span>
-            <span className="muted"> · changes between the two commits</span>
+            <span className="muted"> · from the first picked commit to the second</span>
+            <button className="btn btn-ghost btn-icon" onClick={swapRange} title="Swap direction">
+              <ArrowLeftRight size={13} />
+            </button>
           </>
         ) : (
           details.subject
