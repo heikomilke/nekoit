@@ -1,5 +1,5 @@
 import type { SelectedLineRange } from "@pierre/diffs/react";
-import { ArrowLeftRight, Cherry, ChevronDown, ChevronRight, Columns2, Rows3, Undo2, UnfoldVertical } from "lucide-react";
+import { ArrowLeftRight, Cherry, ChevronDown, ChevronRight, Columns2, Files, Rows3, Undo2, UnfoldVertical } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildPartialPatch, keepRows, parseUnifiedDiff, rowFor } from "../diff/unified";
 import { api, type CommitDetails as Details, type FileChange } from "../api";
@@ -122,11 +122,14 @@ export function CommitDetailsPane() {
           if (!live) return;
           setDetails(d);
           setFiles(f);
+          // Start on the first file: one diff to highlight instead of the whole commit.
+          setSelectedFiles(f.length ? [f[0].path] : []);
         } else if (single) {
           const [d, f] = await Promise.all([api.commitDetails(repoDir, single), api.commitChanges(repoDir, single)]);
           if (!live) return;
           setDetails(d);
           setFiles(f);
+          setSelectedFiles(f.length ? [f[0].path] : []);
         }
       } catch (e) {
         if (live) setError(errorMessage(e));
@@ -143,7 +146,8 @@ export function CommitDetailsPane() {
   // Keyed on a string so replacing the selection array with an equal one does not refetch.
   const selectionKey = selectedFiles.join("\0");
   useEffect(() => {
-    if (!repoDir || !target) return;
+    // Wait for the file list: it decides the initial file, so fetching earlier would diff the whole commit for nothing.
+    if (!repoDir || !target || loading) return;
     const selectedFiles = selectionKey ? selectionKey.split("\0") : [];
     let live = true;
     (async () => {
@@ -170,7 +174,7 @@ export function CommitDetailsPane() {
     return () => {
       live = false;
     };
-  }, [repoDir, target, range, selectionKey, fullDiff, setError]);
+  }, [repoDir, target, range, selectionKey, fullDiff, loading, setError]);
 
   /**
    * Apply the shown change into the active worktree as a staged pending change:
@@ -343,6 +347,14 @@ export function CommitDetailsPane() {
             <span className="sel-keys">p p cherry-pick · r r revert into {current.worktree?.name} · Esc clear</span>
           </span>
         ) : null}
+        <button
+          className={`btn btn-icon ${selectedFiles.length === 0 && files.length > 0 ? "is-active" : ""}`}
+          onClick={() => setSelectedFiles((cur) => (cur.length === 0 ? (files.length ? [files[0].path] : []) : []))}
+          disabled={files.length < 2}
+          title={selectedFiles.length === 0 ? "Showing all files; click to show one file" : `Show all ${files.length} files in one diff (slower on big commits)`}
+        >
+          <Files size={14} />
+        </button>
         <button
           className="btn btn-icon"
           onClick={() => void pick()}

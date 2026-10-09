@@ -31,6 +31,9 @@ function useDiffOptions(p: Common): Options {
       diffIndicators: "bars",
       overflow: "scroll",
       stickyHeader: true,
+      // Past these sizes a file renders as plain text (library defaults: 1000 / 100k); keeps generated and minified files from stalling the UI.
+      tokenizeMaxLineLength: 400,
+      tokenizeMaxLength: 60_000,
       enableLineSelection: p.enableLineSelection ?? false,
       onLineSelected: p.onLineSelected,
       // Selected lines must be unmistakable: accent tint plus a bar in the gutter.
