@@ -215,7 +215,8 @@ export function ChangesPane() {
   const menuItems = useCallback(
     (entry: StatusEntry, side: Side): MenuItem[] => {
       const items: MenuItem[] = [];
-      if (side === "unstaged") items.push({ label: "Stage", hint: "s", onClick: () => void move(true) });
+      items.push({ label: "Open with default app", hint: "o", onClick: () => void api.openFile(wt?.path ?? "", null, entry.path).catch((e) => setError(errorMessage(e))) });
+      if (side === "unstaged") items.push({ label: "Stage", hint: "s", separator: true, onClick: () => void move(true) });
       else items.push({ label: "Unstage", hint: "u", onClick: () => void move(false) });
       ignoreSuggestions(entry.path).forEach(([pattern, label], i) => {
         items.push({ label: `Ignore ${label}`, hint: pattern, separator: i === 0, onClick: () => void ignore(pattern) });
@@ -223,7 +224,7 @@ export function ChangesPane() {
       items.push({ label: entry.untracked ? "Delete file" : "Discard changes", hint: "r r", danger: true, separator: true, onClick: () => void discard() });
       return items;
     },
-    [move, ignore, discard],
+    [move, ignore, discard, wt, setError],
   );
 
   const stageAll = useCallback(async () => {
@@ -325,6 +326,12 @@ export function ChangesPane() {
           e.preventDefault();
           void discard();
           break;
+        case "o":
+          if (wt && pick) {
+            e.preventDefault();
+            void api.openFile(wt.path, null, pick.path).catch((err) => setError(errorMessage(err)));
+          }
+          break;
         case "n":
           e.preventDefault();
           nav.next();
@@ -345,7 +352,7 @@ export function ChangesPane() {
     };
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, [pick, staged, unstaged, move, stageAll, doCommit, entry, ignore, discard, armed, range, nav]);
+  }, [pick, staged, unstaged, move, stageAll, doCommit, entry, ignore, discard, armed, range, nav, wt, setError]);
 
   const changeStyle = (s: DiffStyle) => {
     setDiffStyle(s);

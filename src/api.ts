@@ -176,6 +176,8 @@ export const api = {
   resolve: (repo: string, rev: string) => invoke<string>("resolve", { repo, rev }),
   addToGitignore: (worktree: string, pattern: string, openEditor = true) => invoke<string>("add_to_gitignore", { worktree, pattern, openEditor }),
   openTerminal: (dir: string) => invoke<string>("open_terminal", { dir }),
+  /** Open a file with the default app; `rev` exports that revision to the cache dir first. */
+  openFile: (repo: string, rev: string | null, path: string) => invoke<string>("open_file", { repo, rev, path }),
   remotes: (repo: string) => invoke<RemoteInfo[]>("remotes", { repo }),
   fetch: (repo: string, remote: string | null, prune = true) => invoke<RemoteResult>("fetch", { repo, remote, prune }),
   pull: (worktree: string, mode: PullMode, remote: string | null = null, branch: string | null = null) =>

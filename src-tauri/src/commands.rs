@@ -221,6 +221,36 @@ pub async fn refs_containing(state: State<'_, AppState>, repo: String, sha: Stri
 }
 
 /// Open the system terminal in `dir`; returns the emulator that was launched.
+
+/// Open a file with the desktop's default app. With `rev`, the file as of that
+/// revision is exported under the cache dir first (`<cache>/nekoit/<rev>/<path>`);
+/// without, the working tree file itself opens. Returns the opened path.
+#[tauri::command]
+pub async fn open_file(state: State<'_, AppState>, repo: String, rev: Option<String>, path: String) -> R<String> {
+    blocking(&state.git, move |git| {
+        let target = match rev.as_deref() {
+            None => p(&repo).join(&path),
+            Some(r) => {
+                let bytes = g::file_at(git, &p(&repo), Some(r), &path)?;
+                let short: String = r.chars().take(12).collect();
+                let out = dirs::cache_dir()
+                    .ok_or_else(|| g::GitError::Other("no cache dir".into()))?
+                    .join("nekoit")
+                    .join(short)
+                    .join(&path);
+                if let Some(parent) = out.parent() {
+                    std::fs::create_dir_all(parent).map_err(g::GitError::Spawn)?;
+                }
+                std::fs::write(&out, bytes).map_err(g::GitError::Spawn)?;
+                out
+            }
+        };
+        crate::terminal::view(&target).map_err(g::GitError::Other)?;
+        Ok(target.display().to_string())
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn open_terminal(dir: String) -> R<String> {
     tauri::async_runtime::spawn_blocking(move || crate::terminal::open(&dir)).await.map_err(|e| e.to_string())?

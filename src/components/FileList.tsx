@@ -8,13 +8,15 @@ interface Props {
   /** Selected paths; at most two. */
   selected: string[];
   onSelect(path: string, extend: boolean): void;
+  /** Double-click: open the file with the system's default app. */
+  onOpen?(path: string): void;
   title: string;
 }
 
 const STATUS_LABEL: Record<string, string> = { A: "added", M: "modified", D: "deleted", R: "renamed", C: "copied", T: "type changed", U: "unmerged" };
 
 /** Changed files of a commit or range; ctrl-click a second file to compare the two. */
-export function FileList({ files, selected, onSelect, title }: Props) {
+export function FileList({ files, selected, onSelect, onOpen, title }: Props) {
   const [query, setQuery] = useState("");
   const matches = usePathFilter(query);
   const shown = files.filter((f) => matches(f.path) || (f.oldPath ? matches(f.oldPath) : false));
@@ -33,7 +35,8 @@ export function FileList({ files, selected, onSelect, title }: Props) {
             aria-selected={sel}
             className={`file-row ${sel ? "is-selected" : ""}`}
             onClick={(e) => onSelect(f.path, e.ctrlKey || e.metaKey)}
-            title={`${STATUS_LABEL[f.status] ?? f.status}${f.oldPath ? ` from ${f.oldPath}` : ""}`}
+            onDoubleClick={() => onOpen?.(f.path)}
+            title={`${STATUS_LABEL[f.status] ?? f.status}${f.oldPath ? ` from ${f.oldPath}` : ""}${onOpen ? " · double-click or o: open with default app" : ""}`}
           >
             <span className={`status status-${f.status}`}>{f.status}</span>
             <span className="file-name">{basename(f.path)}</span>

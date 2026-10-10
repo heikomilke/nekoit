@@ -53,6 +53,7 @@ pub fn run() {
             commands::commit,
             commands::resolve,
             commands::open_terminal,
+            commands::open_file,
             commands::add_to_gitignore,
             commands::remotes,
             commands::fetch,

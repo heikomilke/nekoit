@@ -237,6 +237,17 @@ export function CommitDetailsPane() {
     }
   }, [current?.worktree, target, busy, pair, selectedFiles, range, repoDir, lineRange, armed, refreshStatus, setNotice, setError, setCommitDraft, select, details?.subject]);
 
+  /** Open the file as of the shown revision (its old side when it was deleted) with the default app. */
+  const openFile = useCallback(
+    (path: string) => {
+      if (!repoDir || !target) return;
+      const deleted = filesRef.current.find((f) => f.path === path)?.status === "D";
+      const rev = deleted ? (range ? range.base : `${target}^`) : target;
+      api.openFile(repoDir, rev, path).catch((e) => setError(errorMessage(e)));
+    },
+    [repoDir, target, range, setError],
+  );
+
   const revert = useCallback(() => applyFromCommit(true), [applyFromCommit]);
   const pick = useCallback(() => applyFromCommit(false), [applyFromCommit]);
 
@@ -253,6 +264,10 @@ export function CommitDetailsPane() {
         e.preventDefault();
         void pick();
       }
+      if (e.key === "o" && !e.ctrlKey && !e.metaKey && selectedFiles.length === 1) {
+        e.preventDefault();
+        openFile(selectedFiles[0]);
+      }
       if ((e.key === "n" || e.key === "N" || e.key === "b") && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         if (e.key === "n") nav.next();
@@ -266,7 +281,7 @@ export function CommitDetailsPane() {
     };
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, [revert, pick, armed, lineRange, nav]);
+  }, [revert, pick, armed, lineRange, nav, openFile, selectedFiles]);
 
   const onSelectFile = useCallback((path: string, extend: boolean) => {
     setSelectedFiles((cur) => {
@@ -394,7 +409,7 @@ export function CommitDetailsPane() {
         min={180}
         storageKey="details-files"
         className="details-split"
-        first={<FileList files={files} selected={selectedFiles} onSelect={onSelectFile} title={range ? "Changed between" : "Changed files"} />}
+        first={<FileList files={files} selected={selectedFiles} onSelect={onSelectFile} onOpen={openFile} title={range ? "Changed between" : "Changed files"} />}
         second={
           <div className="diff-pane diff-wrap" ref={diffWrap}>
             <ErrorBoundary resetKey={pair ?? patch}>

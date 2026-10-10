@@ -104,3 +104,15 @@ fn shell_words(s: &str) -> Vec<String> {
     }
     out
 }
+
+/// Open `file` with the desktop's default application and return at once.
+pub fn view(file: &Path) -> Result<(), String> {
+    Command::new("xdg-open")
+        .arg(file)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("xdg-open: {e}"))
+}
