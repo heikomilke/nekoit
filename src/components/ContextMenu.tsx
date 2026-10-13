@@ -6,6 +6,8 @@ export interface MenuItem {
   onClick(): void;
   disabled?: boolean;
   danger?: boolean;
+  /** Label shown after a first click; the item only runs on the second click. */
+  confirm?: string;
   /** Renders a separator above this item. */
   separator?: boolean;
 }
@@ -21,6 +23,7 @@ interface Props {
 export function ContextMenu({ x, y, items, onClose }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x, y });
+  const [armed, setArmed] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     const el = root.current;
@@ -51,11 +54,15 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
           className={`menu-item ${it.danger ? "is-danger" : ""} ${it.separator ? "has-separator" : ""}`}
           disabled={it.disabled}
           onClick={() => {
+            if (it.confirm && armed !== i) {
+              setArmed(i);
+              return;
+            }
             onClose();
             it.onClick();
           }}
         >
-          <span>{it.label}</span>
+          <span>{armed === i && it.confirm ? it.confirm : it.label}</span>
           {it.hint && <span className="menu-hint">{it.hint}</span>}
         </button>
       ))}

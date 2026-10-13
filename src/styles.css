@@ -328,7 +328,8 @@ button { font: inherit; color: inherit; }
 .commit-toolbar .filter-input { width: 100%; }
 .flat-dot { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--fg-muted); margin-left: 4px; }
 
-.ctx-menu { position: fixed; }
+.ctx-menu { position: fixed; right: auto; max-width: 420px; }
+.ctx-menu .menu-hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-item.has-separator { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; border-radius: 0 0 var(--radius) var(--radius); }
 .arm-hint { color: var(--danger); font-weight: 600; }
 .sel-pill { display: inline-flex; align-items: center; gap: 8px; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 1px solid var(--accent); color: var(--fg); font-size: 12px; }

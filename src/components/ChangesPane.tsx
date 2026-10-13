@@ -170,13 +170,14 @@ export function ChangesPane() {
   /**
    * Discard the focused file's working changes (and index changes when picked
    * from Staged), or only the selected lines when a range is active on the
-   * unstaged diff.
+   * unstaged diff. `wholeFileConfirmed` is the context menu path: the menu
+   * has already asked, and it always means the whole file.
    */
-  const discard = useCallback(async () => {
+  const discard = useCallback(async (wholeFileConfirmed = false) => {
     if (!wt || !pick || !entry || busy) return;
-    const lines = range && parsed && pick.side === "unstaged";
+    const lines = !wholeFileConfirmed && range && parsed && pick.side === "unstaged";
     const key = lines ? `${entry.path}:${range.start}-${range.end}` : entry.path;
-    if (armed !== key) {
+    if (!wholeFileConfirmed && armed !== key) {
       setArmed(key);
       setTimeout(() => setArmed((a) => (a === key ? null : a)), 3000);
       return;
@@ -203,7 +204,7 @@ export function ChangesPane() {
       if (pick.side === "staged" || entry.worktree === "A") await api.unstage(wt.path, [entry.path]);
       if (entry.untracked || entry.worktree === "A") await api.discard(wt.path, [], [entry.path]);
       else await api.discard(wt.path, [entry.path], []);
-      setNotice(`discarded changes to ${entry.path}`);
+      setNotice(entry.untracked ? `deleted ${entry.path}` : `discarded changes to ${entry.path}`);
       await refresh();
     } catch (e) {
       setError(errorMessage(e));
@@ -221,7 +222,14 @@ export function ChangesPane() {
       ignoreSuggestions(entry.path).forEach(([pattern, label], i) => {
         items.push({ label: `Ignore ${label}`, hint: pattern, separator: i === 0, onClick: () => void ignore(pattern) });
       });
-      items.push({ label: entry.untracked ? "Delete file" : "Discard changes", hint: "r r", danger: true, separator: true, onClick: () => void discard() });
+      items.push({
+        label: entry.untracked ? "Delete file" : "Discard changes",
+        confirm: entry.untracked ? "Click again to delete" : "Click again to discard",
+        hint: "r r",
+        danger: true,
+        separator: true,
+        onClick: () => void discard(true),
+      });
       return items;
     },
     [move, ignore, discard, wt, setError],
